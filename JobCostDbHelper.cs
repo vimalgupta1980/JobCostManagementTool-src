@@ -75,22 +75,11 @@ namespace Syscon.JobCostManagementTool
                     //entry of the originating transactions.   For now, that is only AP entries
 
                     //Get the list of AP invoices associated with the job costs
-                    //con.ExecuteNonQuery("SELECT ajc.*, NVL(a.recnum, 00000000) as aprecnum, NVL(a.invnum, SPACE(15)) as apinvnum, 000 as taxprtcnt, "
-                    //                    + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\",LEN(trnnum)) as TaxTrnnum, 000 as taxAccCnt "
-                    //                    + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec "
-                    //                    + "INTO Table {1}", ActiveJobCosts, ActiveJobCosts);
-
                     con.ExecuteNonQuery("SELECT ajc.*, NVL(a.recnum, 00000000) as aprecnum, NVL(a.invnum, SPACE(15)) as apinvnum, 000 as taxprtcnt, "
                     + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\",LEN(trnnum)) as TaxTrnnum, 000 as taxAccCnt "
                     + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec "
                     + "INTO Table {1}", ActiveJobCosts, ActiveJobCostsTmp);
 
-                    //con.ExecuteNonQuery("Delete from {0}", ActiveJobCosts);
-
-                    //con.ExecuteNonQuery("Insert into {0} ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                    //                    + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme, aprecnum, apinvnum,taxprtcnt, TaxTrnnum, taxAccCnt) "
-                    //                    + "SELECT * from {1}"
-                    //                    , ActiveJobCosts, ActiveJobCostsTmp);
                     
                     //Get the list of AP lines used to generate the job costs
                     //Include a marking if the part number is from the tax part classification
@@ -103,44 +92,59 @@ namespace Syscon.JobCostManagementTool
 
                     //Mark each active job cost record as to whether there was a tax accrual/payment made on that
                     //job cost record.  This is done by counting the tax parts that were used on the invoice
-                    con.ExecuteNonQuery("UPDATE \"{0}\" _ActiveJobCosts SET taxprtcnt = select COUNT(*) from \"{1}\" _ActiveAPLines "
-                                        + "WHERE recnum = _ActiveJobCosts.aprecnum AND _ActiveAPLines.prtcls = {2}",
-                                        ActiveJobCosts, ActiveAPLines, taxPartClass);
+                    int taxPartCount = con.GetScalar<int>("select COUNT(*) from {0} _ActiveAPLines, {1} _ActiveJobCosts WHERE _ActiveAPLines.recnum = _ActiveJobCosts.aprecnum AND _ActiveAPLines.prtcls = {2}"
+                        , ActiveAPLines, ActiveJobCostsTmp, taxPartClass);
+                                        
+                    //con.ExecuteNonQuery("UPDATE {0} _ActiveJobCosts SET taxprtcnt = (select COUNT(*) from {1} _ActiveAPLines, _ActiveJobCosts "
+                    //                    + "WHERE _ActiveAPLines.recnum = _ActiveJobCosts.aprecnum AND _ActiveAPLines.prtcls = {2})",
+                    //                    ActiveJobCostsTmp, ActiveAPLines, taxPartClass);
 
-                    con.ExecuteNonQuery("UPDATE {0} a1 SET taxacccnt = (select COUNT(*) from {1} a2 WHERE a2.trnnum == a1.taxtrnnum ) "
-                                        +"where usrnme <> \"TaxAcc\"",
-                                        ActiveJobCostsTmp, ActiveJobCostsTmp, taxPartClass);
+                    con.ExecuteNonQuery("UPDATE {0} SET taxprtcnt = {1}", ActiveJobCostsTmp, taxPartCount);
+
+                    //con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} "
+                    //                    + "where usrnme <> \"TaxAcc\"",
+                    //                    ActiveJobCosts, ActiveJobCosts, taxPartClass);
+
+                    int tranCount = con.GetScalar<int>("select COUNT(*) from {0} WHERE trnnum == taxtrnnum", ActiveJobCostsTmp);
+                    con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} "
+                                        + "where usrnme <> \"TaxAcc\"",
+                                        ActiveJobCostsTmp, tranCount);
 
                     //Check to see if each job cost has already had taxes accrued
                     //Create list of job cost records that must be accrued with taxes
-
                     con.ExecuteNonQuery("SELECT	recnum, jobnum, phsnum, trnnum, dscrpt, trndte, {0} as entdte, actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
                                         + "cstcde, csttyp, cstamt as origcstamt, 00000000.00 as cstamt, 00000000.00 as blgamt, 000 as ovrrde, \"TaxAcc\" as usrnme "
-                                        + "FROM {1} WHERE TaxPrtCnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {2}",
+                                        + "FROM {1} WHERE taxprtcnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {2}",
                                         DateTime.Today.ToFoxproDate(), ActiveJobCostsTmp, TaxJobCosts);
 
                     //Update the basic information to identify these as tax accrual records
+                    DataTable taxJobCostDt = con.GetDataTable("TaxJobCosts", "select * from {0}", TaxJobCosts);
 
-                    con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\", "
-                                        + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
-                                        + "cstamt = origcstamt * taxrates(csttyp), "
-                                        + "blgamt = origcstamt * taxrates(csttyp)", TaxJobCosts);
+                    foreach (DataRow dr in taxJobCostDt.Rows)
+                    {
+                        decimal recNum = (decimal)dr["recnum"];
+                        decimal cstType = (decimal)dr["csttyp"];
+                        decimal origcStament = (decimal)dr["origcstamt"];
+
+                        con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\", "
+                                            + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
+                                            + "cstamt = {1}, "
+                                            + "blgamt = {2} WHERE recnum = {3}", TaxJobCosts, recNum, origcStament * (decimal)taxRates[(int)cstType], origcStament * (decimal)taxRates[(int)cstType]);
+                    }
 
                     //Add the records
                     int taxJobCostsCount = con.GetScalar<int>("select count(*) from {0}", TaxJobCosts);
-                    //DataTable _taxJobCosts = con.GetDataTable("TaxJobCosts", "select * from {0}", TaxJobCosts);
 
                     if (taxJobCostsCount > 0)
                     {
-                        //TODO: The original query is being too complicated to translate as it is.
                         //TODO: Make the below code similar in functionality to the original foxpro code.
-                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme ) "             
-                                           + "SELECT (select MAX(recnum +1) FROM jobcst) as recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, "
-                                           + "actprd, srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme  FROM {0}", TaxJobCosts);
-
+                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
+                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme, vndnum, eqpnum, empnum, payrec, paytyp ) "             
+                                           + "SELECT (select MAX(recnum +1) FROM jobcst) as recnum, '   ' as wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, "
+                                           + "actprd, srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme, 0.0 as vndnum, 0.0 as eqpnum, 0.0 as empnum, "
+                                           + "0.0 as payrec, 0 as paytyp "
+                                           + " FROM {0}", TaxJobCosts);
                     }
-
                 }     
             }            
         }
@@ -247,17 +251,17 @@ namespace Syscon.JobCostManagementTool
                     //Add the records
                     if (matCostCount > 0)
                     {
-                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
                                             + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                            + "SELECT select MAX(recnum + 1) recnum FROM jobcst, "
-                                            + "_NewMatCosts.*, \"{0}\" ntetxt FROM {1} _NewMatCosts", MatCostDetail, NewMatCosts);
+                                            + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
+                                            + "_NewMatCosts.*, \"{0}\" as ntetxt FROM {1} _NewMatCosts", MatCostDetail, NewMatCosts);
                     }
 
                     if (subMatCostCount > 0)
                     {
-                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, status, "
+                        con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, status, "
                                             + "bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                            + "SELECT (select MAX(recnum) recnum FROM jobcst), "
+                                            + "SELECT (select MAX(recnum) recnum FROM jobcst), '   ' as wrkord, "
                                             + "_NewSubMatCosts.*, \"{0}\" FROM {1} _NewSubMatCosts", SubMatDetail, NewSubMatCosts);
                     }
 
@@ -287,8 +291,6 @@ namespace Syscon.JobCostManagementTool
                         ACRInvList = con.GetTempDBF()
                     )
                 {
-
-                    //LOCAL ARRAY laMemLines(1,1)
 
                     //Find all the consolidated job costs in the selected time period
                     //That have been invoiced through T&M
@@ -322,12 +324,8 @@ namespace Syscon.JobCostManagementTool
                         {
                             for (int i = 1; i <= nteTxts.Length; i++)
                             {
-                                //DataRow drRecList = recordList.NewRow();
-
                                 double recNum = 0.0;
                                 double.TryParse(nteTxts[i], out recNum);
-                                //drRecList["recnum"] = recNum;
-                                //drRecList["acrinv"] = dr["acrinv"];
 
                                 con.ExecuteNonQuery("INSERT INTO {0} VALUES (VAL({1}), {2}", RecordList, recNum, dr["acrinv"]);
                             }

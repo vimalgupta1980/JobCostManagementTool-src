@@ -85,6 +85,7 @@ namespace Syscon.JobCostManagementTool
         {
             string partClass    = Env.GetConfigVar("taxPartClass", "0", true);
             string phaseNum     = Env.GetConfigVar("PhaseNum", "0", true);
+            string costCode     = Env.GetConfigVar("CostCode", "0", true);
 
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
@@ -95,8 +96,13 @@ namespace Syscon.JobCostManagementTool
 
                 //Get phase name from jobphs and fill the phase name combo box
                 DataTable phaseNumDt = con.GetDataTable("jobphs", "select distinct phsnme from jobphs");
-                cboPhaseNum.DataSource = (from s in phaseNumDt.Rows.ToIEnumerable()
-                                              select s[0].ToString().Trim()).ToArray();
+                cboPhaseNum.DataSource = new string [] { "None" }.Concat((from s in phaseNumDt.Rows.ToIEnumerable()
+                                              select s[0].ToString().Trim())).ToArray();
+
+                //Get cost codes from cstcde
+                DataTable costCodeDt = con.GetDataTable("CostCode", "Select cdenme from cstcde");
+                cboCostCode.DataSource = new string[] { "None" }.Concat((from s in costCodeDt.Rows.ToIEnumerable()
+                                                                         select s[0].ToString().Trim())).ToArray();
             }            
 
             cmbEndPeriod.SelectItem<string>(p => p == Env.GetConfigVar("endperiod", "12", true));
@@ -237,25 +243,32 @@ namespace Syscon.JobCostManagementTool
 
                         FillPhaseAndTaxPartInfo(out phaseNum, out taxPartClassId);
 
-                        //Based on the other parameters selected, run the Option 1 or Option 2.
-                        foreach (long jobNum in jobnums)
+                        try
                         {
-                            // OPTION 1
-                            if (this.radScanJobForTax.Checked)
-                            {                                
-                                // This routine scans job costs for tax liabilities
-                                jobCostDB.ScanForTaxLiability(jobNum, phaseNum, taxPartClassId);
-                            }
-
-                            // OPTION 2
-                            if (this.radCombineForBilling.Checked)
+                            //Based on the other parameters selected, run the Option 1 or Option 2.
+                            foreach (long jobNum in jobnums)
                             {
-                                // The next two procedures are run together to create billable cost records that 
-                                // are combined from distinct job cost records by cost type.
+                                // OPTION 1
+                                if (this.radScanJobForTax.Checked)
+                                {
+                                    // This routine scans job costs for tax liabilities
+                                    jobCostDB.ScanForTaxLiability(jobNum, phaseNum, taxPartClassId);
+                                }
 
-                                jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
-                                jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+                                // OPTION 2
+                                if (this.radCombineForBilling.Checked)
+                                {
+                                    // The next two procedures are run together to create billable cost records that 
+                                    // are combined from distinct job cost records by cost type.
+
+                                    jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+                                    jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+                                }
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         }
                     }
                     else
@@ -307,6 +320,11 @@ namespace Syscon.JobCostManagementTool
         private void cboPhaseNum_SelectedIndexChanged(object sender, EventArgs e)
         {
             Env.SetConfigVar("PhaseNum", cboPhaseNum.SelectedItem);
+        }
+
+        private void cboCostCode_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            Env.SetConfigVar("CostCode", cboCostCode.SelectedItem);
         }
 
         private void chkUnbilled_CheckedChanged(object sender, EventArgs e)
@@ -393,6 +411,7 @@ namespace Syscon.JobCostManagementTool
         }
 
         #endregion  //Menu Handlers
+
 
         #endregion
 

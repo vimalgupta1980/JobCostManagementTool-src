@@ -64,6 +64,8 @@
             this.lblPhase = new System.Windows.Forms.Label();
             this.lblEndDate = new System.Windows.Forms.Label();
             this.dteEndDate = new System.Windows.Forms.DateTimePicker();
+            this.cboCostCode = new SysconCommon.GUI.SearchableComboBox();
+            this.label6 = new System.Windows.Forms.Label();
             this.menuStrip1.SuspendLayout();
             this.grpBoxSelOptions.SuspendLayout();
             this.SuspendLayout();
@@ -82,7 +84,7 @@
             // btnUpdateJobCost
             // 
             this.btnUpdateJobCost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnUpdateJobCost.Location = new System.Drawing.Point(449, 407);
+            this.btnUpdateJobCost.Location = new System.Drawing.Point(449, 449);
             this.btnUpdateJobCost.Name = "btnUpdateJobCost";
             this.btnUpdateJobCost.Size = new System.Drawing.Size(98, 23);
             this.btnUpdateJobCost.TabIndex = 4;
@@ -355,7 +357,7 @@
             // 
             this.cboTaxPartClass.ConfigVarName = null;
             this.cboTaxPartClass.FormattingEnabled = true;
-            this.cboTaxPartClass.Location = new System.Drawing.Point(104, 319);
+            this.cboTaxPartClass.Location = new System.Drawing.Point(96, 319);
             this.cboTaxPartClass.Name = "cboTaxPartClass";
             this.cboTaxPartClass.Size = new System.Drawing.Size(203, 21);
             this.cboTaxPartClass.TabIndex = 26;
@@ -365,7 +367,7 @@
             // 
             this.grpBoxSelOptions.Controls.Add(this.radCombineForBilling);
             this.grpBoxSelOptions.Controls.Add(this.radScanJobForTax);
-            this.grpBoxSelOptions.Location = new System.Drawing.Point(17, 388);
+            this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 414);
             this.grpBoxSelOptions.Name = "grpBoxSelOptions";
             this.grpBoxSelOptions.Size = new System.Drawing.Size(408, 75);
             this.grpBoxSelOptions.TabIndex = 27;
@@ -398,16 +400,16 @@
             // 
             this.cboPhaseNum.ConfigVarName = null;
             this.cboPhaseNum.FormattingEnabled = true;
-            this.cboPhaseNum.Location = new System.Drawing.Point(104, 353);
+            this.cboPhaseNum.Location = new System.Drawing.Point(96, 385);
             this.cboPhaseNum.Name = "cboPhaseNum";
-            this.cboPhaseNum.Size = new System.Drawing.Size(113, 21);
+            this.cboPhaseNum.Size = new System.Drawing.Size(121, 21);
             this.cboPhaseNum.TabIndex = 29;
             this.cboPhaseNum.SelectedIndexChanged += new System.EventHandler(this.cboPhaseNum_SelectedIndexChanged);
             // 
             // lblPhase
             // 
             this.lblPhase.AutoSize = true;
-            this.lblPhase.Location = new System.Drawing.Point(48, 356);
+            this.lblPhase.Location = new System.Drawing.Point(40, 388);
             this.lblPhase.Name = "lblPhase";
             this.lblPhase.Size = new System.Drawing.Size(37, 13);
             this.lblPhase.TabIndex = 28;
@@ -429,11 +431,32 @@
             this.dteEndDate.Size = new System.Drawing.Size(210, 20);
             this.dteEndDate.TabIndex = 30;
             // 
+            // cboCostCode
+            // 
+            this.cboCostCode.ConfigVarName = null;
+            this.cboCostCode.FormattingEnabled = true;
+            this.cboCostCode.Location = new System.Drawing.Point(96, 354);
+            this.cboCostCode.Name = "cboCostCode";
+            this.cboCostCode.Size = new System.Drawing.Size(202, 21);
+            this.cboCostCode.TabIndex = 33;
+            this.cboCostCode.SelectedIndexChanged += new System.EventHandler(this.cboCostCode_SelectedIndexChanged);
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(40, 357);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(56, 13);
+            this.label6.TabIndex = 32;
+            this.label6.Text = "Cost Code";
+            // 
             // JobCostManagement
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(574, 472);
+            this.ClientSize = new System.Drawing.Size(574, 501);
+            this.Controls.Add(this.cboCostCode);
+            this.Controls.Add(this.label6);
             this.Controls.Add(this.lblEndDate);
             this.Controls.Add(this.dteEndDate);
             this.Controls.Add(this.cboPhaseNum);
@@ -512,6 +535,8 @@
         private System.Windows.Forms.Label lblPhase;
         private System.Windows.Forms.Label lblEndDate;
         private System.Windows.Forms.DateTimePicker dteEndDate;
+        private SysconCommon.GUI.SearchableComboBox cboCostCode;
+        private System.Windows.Forms.Label label6;
 
 
     }
