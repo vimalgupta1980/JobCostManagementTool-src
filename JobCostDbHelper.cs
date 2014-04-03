@@ -316,7 +316,7 @@ namespace Syscon.JobCostManagementTool
                     DataTable _combinedCosts = con.GetDataTable("CombinedCosts", "SELECT * FROM {0}", CombinedCosts);
                     foreach (DataRow dr in _combinedCosts.Rows)
                     {
-                        string nteTxt = (string)dr["ntetxt"];
+                        string nteTxt = (dr != null) ? (string)dr["ntetxt"] : string.Empty;
                         char[] delimiterChars = { '\n', '|' };
                         string[] nteTxts = nteTxt.Split(delimiterChars);
 
@@ -325,9 +325,11 @@ namespace Syscon.JobCostManagementTool
                             for (int i = 1; i <= nteTxts.Length; i++)
                             {
                                 double recNum = 0.0;
-                                double.TryParse(nteTxts[i], out recNum);
 
-                                con.ExecuteNonQuery("INSERT INTO {0} VALUES (VAL({1}), {2}", RecordList, recNum, dr["acrinv"]);
+                                if (double.TryParse(nteTxts[i], out recNum))
+                                {
+                                    con.ExecuteNonQuery("INSERT INTO {0} VALUES (VAL({1}), {2}", RecordList, recNum, dr["acrinv"]);
+                                }
                             }
                         }
                     }
