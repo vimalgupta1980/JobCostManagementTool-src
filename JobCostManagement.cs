@@ -397,7 +397,7 @@ namespace Syscon.JobCostManagementTool
 
         private void onlineHelpToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("http://syscon-inc.com/product-support/2165/support.asp");
+            System.Diagnostics.Process.Start("http://syscon-inc.com/");
         }
 
         private void activateToolStripMenuItem_Click(object sender, EventArgs e)
