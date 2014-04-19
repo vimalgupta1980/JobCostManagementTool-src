@@ -23,7 +23,7 @@ namespace Syscon.JobCostManagementTool
 {
 
     /// <summary>
-    /// 
+    /// The main UI for the job cost management tool.
     /// </summary>
     public partial class JobCostManagement : Form
     {
@@ -90,27 +90,30 @@ namespace Syscon.JobCostManagementTool
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
                 //Get clsnme values from prtcls and fill the part class combo box
-                DataTable partClassDt = con.GetDataTable("prtcls", "select clsnme from prtcls");
+                DataTable partClassDt = con.GetDataTable("prtcls", "select recnum, clsnme from prtcls order by recnum");
                 cboTaxPartClass.DataSource = (from s in partClassDt.Rows.ToIEnumerable()
-                                              select s[0].ToString().Trim()).ToArray();
-
-                //Get phase name from jobphs and fill the phase name combo box
-                DataTable phaseNumDt = con.GetDataTable("jobphs", "select distinct phsnme from jobphs");
-                cboPhaseNum.DataSource = new string [] { "None" }.Concat((from s in phaseNumDt.Rows.ToIEnumerable()
-                                              select s[0].ToString().Trim())).ToArray();
+                                              select (s[0].ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
 
                 //Get cost codes from cstcde
-                DataTable costCodeDt = con.GetDataTable("CostCode", "Select cdenme from cstcde");
+                DataTable costCodeDt = con.GetDataTable("CostCode", "Select recnum, cdenme from cstcde order by recnum");
                 cboCostCode.DataSource = new string[] { "None" }.Concat((from s in costCodeDt.Rows.ToIEnumerable()
-                                                                         select s[0].ToString().Trim())).ToArray();
+                                                                         select (Convert.ToInt32(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim()))).ToArray();
             }            
 
-            cmbEndPeriod.SelectItem<string>(p => p == Env.GetConfigVar("endperiod", "12", true));
-            cmbStartingPeriod.SelectItem<string>(p => p == Env.GetConfigVar("startperiod", "0", true));
             cboTaxPartClass.SelectedItem    = partClass;
-            cboPhaseNum.SelectedItem        = phaseNum;
+            cboCostCode.SelectedItem        = costCode;
 
-            chkUnbilled.Checked = Env.GetConfigVar("ExportUnbilledOnly", false, true);
+            radioShowAllJobs.Checked = Env.GetConfigVar("ShowAllJobs", false, false);
+            radioShowTMJobs.Checked = Env.GetConfigVar("ShowTnMJobs", false, false);
+
+            DateTime startDate;
+            DateTime endDate;
+
+            DateTime.TryParse(Env.GetConfigVar("StartDate"), out startDate);
+            DateTime.TryParse(Env.GetConfigVar("EndDate"), out endDate);
+
+            dteStartDate.Value = (startDate == DateTime.MinValue) ? DateTime.Now : startDate;
+            dteEndDate.Value = (endDate == DateTime.MinValue) ? DateTime.Now : endDate; ;
         }
 
         #endregion
@@ -144,7 +147,7 @@ namespace Syscon.JobCostManagementTool
         private void JobCostManagement_Load(object sender, EventArgs e)
         {
             // resets it everytime it is run so that the user can't just change to a product they already have a license for
-            Env.SetConfigVar("product_id", 178510);
+            Env.SetConfigVar("product_id", 322504);
             
             var product_id = Env.GetConfigVar("product_id", 0, false);
             var product_version = "1.0.0.0";
@@ -159,7 +162,7 @@ namespace Syscon.JobCostManagementTool
 
             try
             {
-                var license = SysconCommon.Protection.ProtectionInfo.GetLicense(product_id, product_version, 15751);
+                var license = SysconCommon.Protection.ProtectionInfo.GetLicense(product_id, product_version);
 
                 if (license.IsTrial)
                 {
@@ -240,8 +243,9 @@ namespace Syscon.JobCostManagementTool
                     {
                         long phaseNum = 0;
                         int taxPartClassId = 0;
-
-                        FillPhaseAndTaxPartInfo(out phaseNum, out taxPartClassId);
+                        int costCode = 0;
+                        FillTaxPartInfo(out taxPartClassId);
+                        FillCostCodeInfo(out costCode);
 
                         try
                         {
@@ -253,16 +257,23 @@ namespace Syscon.JobCostManagementTool
                                 {
                                     // This routine scans job costs for tax liabilities
                                     jobCostDB.ScanForTaxLiability(jobNum, phaseNum, taxPartClassId);
+
+                                    MessageBox.Show("Finished scanning jobs for tax liabilities");
                                 }
 
                                 // OPTION 2
                                 if (this.radCombineForBilling.Checked)
                                 {
+                                    //Save the start and end date to config
+                                    Env.SetConfigVar("StartDate", dteStartDate.Value);
+                                    Env.SetConfigVar("EndDate", dteEndDate.Value);
+
                                     // The next two procedures are run together to create billable cost records that 
                                     // are combined from distinct job cost records by cost type.
-
-                                    jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+                                    jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, costCode);
                                     jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+
+                                    MessageBox.Show("Finished consolidating job costs");
                                 }
                             }
                         }
@@ -279,37 +290,35 @@ namespace Syscon.JobCostManagementTool
             }
         }
 
-        private void FillPhaseAndTaxPartInfo(out long phaseNum, out int taxPartClassId)
+        private void FillTaxPartInfo(out int taxPartClassId)
         {
-            long phase = 0;
             int taxPartId = 0;
 
-            using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
+            try
             {
-                try
-                {
-                    phase = con.GetScalar<long>("SELECT phsnum from jobphs where phsnme = \"{0}\"", cboPhaseNum.SelectedItem);
-                    taxPartId = con.GetScalar<int>("SELECT recnum from prtcls where clsnme = \"{0}\"", cboTaxPartClass.SelectedItem);
-                }
-                catch
-                {
-                    phaseNum = phase;
-                    taxPartClassId = taxPartId;
-                }
+                //string clsName = cboTaxPartClass.SelectedItem.ToString().Split('-')[1];
+                taxPartId = Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);//con.GetScalar<int>("SELECT recnum from prtcls where clsnme = \"{0}\"", cboTaxPartClass.SelectedItem);
+            }
+            catch
+            {
+                taxPartClassId = taxPartId;
             }
 
-            phaseNum = phase;
-            taxPartClassId = taxPartId;
-        }        
 
-        private void cmbEndPeriod_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Env.SetConfigVar("endperiod", cmbEndPeriod.SelectedItem);
+            taxPartClassId = taxPartId;
         }
 
-        private void cmbStartingPeriod_SelectedIndexChanged(object sender, EventArgs e)
+        private void FillCostCodeInfo(out int costCode)
         {
-            Env.SetConfigVar("startperiod", cmbStartingPeriod.SelectedItem);
+            try
+            {
+                costCode = Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
+            }
+            catch
+            {
+                costCode = 0;
+                Env.Log("Error in parsing cost code from cost code combo box selected value.");
+            }
         }
 
         private void cboTaxPartClass_SelectedIndexChanged(object sender, EventArgs e)
@@ -317,19 +326,9 @@ namespace Syscon.JobCostManagementTool
             Env.SetConfigVar("taxPartClass", cboTaxPartClass.SelectedItem);
         }
 
-        private void cboPhaseNum_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Env.SetConfigVar("PhaseNum", cboPhaseNum.SelectedItem);
-        }
-
         private void cboCostCode_SelectedIndexChanged(object sender, EventArgs e)
         {
             Env.SetConfigVar("CostCode", cboCostCode.SelectedItem);
-        }
-
-        private void chkUnbilled_CheckedChanged(object sender, EventArgs e)
-        {
-            Env.SetConfigVar("ExportUnbilledOnly", chkUnbilled.Checked);
         }
 
         private void btnSMBDir_Click(object sender, EventArgs e)
@@ -342,20 +341,21 @@ namespace Syscon.JobCostManagementTool
             }
         }
 
+        private void radioShowAllJobs_CheckedChanged(object sender, EventArgs e)
+        {
+            Env.SetConfigVar("ShowAllJobs", radioShowAllJobs.Checked);
+        }
+
+        private void radioShowTMJobs_CheckedChanged(object sender, EventArgs e)
+        {
+            Env.SetConfigVar("ShowTnMJobs", radioShowTMJobs.Checked);
+        }
+
         #region Menu Handlers
         
         private void quitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             this.Close();
-        }
-
-        private void selectNonBillableCostCodesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            //var frm = new CostCodeSelector();
-            //frm.ShowDialog();
-            //var nonbillable = frm.NonBillableCostCodes.Select(i => i.ToString()).ToArray();
-            //var nonbillablecostcodes = string.Join(",", nonbillable);
-            //Env.SetConfigVar("nonbillablecostcodes", nonbillablecostcodes);
         }
 
         private void selectTMJobTypesToolStripMenuItem_Click(object sender, EventArgs e)
@@ -397,23 +397,24 @@ namespace Syscon.JobCostManagementTool
 
         private void onlineHelpToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("http://syscon-inc.com/");
+            System.Diagnostics.Process.Start("http://syscon-inc.com/product-support/CustomApplication/support.asp");
         }
 
         private void activateToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var product_id = Env.GetConfigVar("product_id", 0, false);
-            var product_version = Env.GetConfigVar("product_version", "0.0.0.0", false);
+            var product_version = Env.GetConfigVar("product_version", "1.0.0.0", false);
 
             var frm = new SysconCommon.Protection.ProtectionPlusOnlineActivationForm(product_id, product_version);
             frm.ShowDialog();
             this.OnLoad(null);
         }
 
-        #endregion  //Menu Handlers
-
+        #endregion  //Menu Handlers                
 
         #endregion
+
+        
 
     }
 }
