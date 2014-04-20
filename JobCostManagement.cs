@@ -96,8 +96,8 @@ namespace Syscon.JobCostManagementTool
 
                 //Get cost codes from cstcde
                 DataTable costCodeDt = con.GetDataTable("CostCode", "Select recnum, cdenme from cstcde order by recnum");
-                cboCostCode.DataSource = new string[] { "None" }.Concat((from s in costCodeDt.Rows.ToIEnumerable()
-                                                                         select (Convert.ToInt32(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim()))).ToArray();
+                cboCostCode.DataSource = (from s in costCodeDt.Rows.ToIEnumerable()
+                                          select (Convert.ToInt32(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
             }            
 
             cboTaxPartClass.SelectedItem    = partClass;
@@ -244,37 +244,42 @@ namespace Syscon.JobCostManagementTool
                         long phaseNum = 0;
                         int taxPartClassId = 0;
                         int costCode = 0;
-                        FillTaxPartInfo(out taxPartClassId);
-                        FillCostCodeInfo(out costCode);
 
                         try
                         {
                             //Based on the other parameters selected, run the Option 1 or Option 2.
-                            foreach (long jobNum in jobnums)
+
+                            // OPTION 1
+                            if (this.radScanJobForTax.Checked)
                             {
-                                // OPTION 1
-                                if (this.radScanJobForTax.Checked)
+                                FillTaxPartInfo(out taxPartClassId);
+
+                                foreach (long jobNum in jobnums)
                                 {
                                     // This routine scans job costs for tax liabilities
                                     jobCostDB.ScanForTaxLiability(jobNum, phaseNum, taxPartClassId);
-
-                                    MessageBox.Show("Finished scanning jobs for tax liabilities");
                                 }
 
-                                // OPTION 2
-                                if (this.radCombineForBilling.Checked)
-                                {
-                                    //Save the start and end date to config
-                                    Env.SetConfigVar("StartDate", dteStartDate.Value);
-                                    Env.SetConfigVar("EndDate", dteEndDate.Value);
+                                MessageBox.Show("Finished scanning jobs for tax liabilities");
+                            }
 
+                            // OPTION 2
+                            if (this.radCombineForBilling.Checked)
+                            {
+                                //Save the start and end date to config
+                                Env.SetConfigVar("StartDate", dteStartDate.Value);
+                                Env.SetConfigVar("EndDate", dteEndDate.Value);
+                                
+                                FillCostCodeInfo(out costCode);
+
+                                foreach (long jobNum in jobnums)
+                                {
                                     // The next two procedures are run together to create billable cost records that 
                                     // are combined from distinct job cost records by cost type.
                                     jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, costCode);
                                     jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
-
-                                    MessageBox.Show("Finished consolidating job costs");
                                 }
+                                MessageBox.Show("Finished consolidating job costs");
                             }
                         }
                         catch (Exception ex)
@@ -287,37 +292,6 @@ namespace Syscon.JobCostManagementTool
                         MessageBox.Show("No jobs selected.", "Error", MessageBoxButtons.OK);
                     }
                 }                
-            }
-        }
-
-        private void FillTaxPartInfo(out int taxPartClassId)
-        {
-            int taxPartId = 0;
-
-            try
-            {
-                //string clsName = cboTaxPartClass.SelectedItem.ToString().Split('-')[1];
-                taxPartId = Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);//con.GetScalar<int>("SELECT recnum from prtcls where clsnme = \"{0}\"", cboTaxPartClass.SelectedItem);
-            }
-            catch
-            {
-                taxPartClassId = taxPartId;
-            }
-
-
-            taxPartClassId = taxPartId;
-        }
-
-        private void FillCostCodeInfo(out int costCode)
-        {
-            try
-            {
-                costCode = Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
-            }
-            catch
-            {
-                costCode = 0;
-                Env.Log("Error in parsing cost code from cost code combo box selected value.");
             }
         }
 
@@ -414,7 +388,39 @@ namespace Syscon.JobCostManagementTool
 
         #endregion
 
-        
+        #region Private Methods
+
+        private void FillTaxPartInfo(out int taxPartClassId)
+        {
+            int taxPartId = 0;
+
+            try
+            {
+                //string clsName = cboTaxPartClass.SelectedItem.ToString().Split('-')[1];
+                taxPartId = Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);//con.GetScalar<int>("SELECT recnum from prtcls where clsnme = \"{0}\"", cboTaxPartClass.SelectedItem);
+            }
+            catch
+            {
+                taxPartClassId = taxPartId;
+            }
+
+            taxPartClassId = taxPartId;
+        }
+
+        private void FillCostCodeInfo(out int costCode)
+        {
+            try
+            {
+                costCode = Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
+            }
+            catch
+            {
+                costCode = 0;
+                Env.Log("Error in parsing cost code from cost code combo box selected value.");
+            }
+        }
+
+        #endregion
 
     }
 }
