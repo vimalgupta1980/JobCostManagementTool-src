@@ -109,17 +109,28 @@ namespace Syscon.JobCostManagementTool
                         }
                     }
 
+                    //TODO: This query is little too complicated. To make it simpler
                     //Update taxacccnt
-                    foreach (DataRow dr in dtJc1.Rows)
+                    DataTable dt1 = con.GetDataTable("Dt1", "SELECT * from {0} WHERE usrnme <> \"TaxAcc\"", ActiveJobCostsTmp);
+                    foreach (DataRow dr in dt1.Rows)
                     {
-                        decimal aprecNum = (decimal)dr["aprecnum"];
-                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = taxtrnnum", ActiveJobCostsTmp);
+                        string taxTrnNum = (string)dr["taxtrnnum"];
+
+                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\"", ActiveJobCostsTmp, taxTrnNum);
                         if (count > 0)
                         {
-                            fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE aprecnum = {2} AND usrnme <> \"TaxAcc\"", 
-                                                            ActiveJobCostsTmp, count, aprecNum);
-                        }
+                            fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE usrnme <> \"TaxAcc\"", 
+                                                            ActiveJobCostsTmp, count);
+                        }                        
                     }
+                    //try
+                    //{
+                    //    fldCount = con.ExecuteNonQuery("UPDATE {0} _ActiveJobCosts SET axacccnt = "
+                    //                                    + "(select COUNT(*) from {1} a2 WHERE a2.trnnum == _ActiveJobCosts.taxtrnnum ) "
+                    //                                    + "where usrnme <> \"TaxAcc\"", ActiveJobCostsTmp, ActiveJobCostsTmp);
+                    //}
+                    //catch (Exception ex) { }
+                    
 
                     //Check to see if each job cost has already had taxes accrued
                     //Create list of job cost records that must be accrued with taxes
@@ -127,6 +138,7 @@ namespace Syscon.JobCostManagementTool
                                         + "cstcde, csttyp, cstamt as origcstamt, 00000000.00 as cstamt, 00000000.00 as blgamt, 000 as ovrrde, \"TaxAcc\" as usrnme "
                                         + "FROM {1} WHERE taxprtcnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {2}",
                                         DateTime.Today.ToFoxproDate(), ActiveJobCostsTmp, TaxJobCosts);
+                    
 
                     progress.Tick();
                     progress.Text = "Identifying the tax accrual records";
@@ -159,12 +171,6 @@ namespace Syscon.JobCostManagementTool
                     if (dtTaxJobCosts != null && dtTaxJobCosts.Rows.Count > 0)
                     {
                         
-                        //fldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                        //                                       + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme ) "
-                        //                                       + "SELECT ((SELECT MAX(recnum) FROM jobcst) + 1), jobnum, phsnum, trnnum, dscrpt, trndte, entdte, "
-                        //                                       + "actprd, srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme"
-                        //                                       + " FROM {0}", TaxJobCosts);
-
                         fldCount = 0;
                         foreach (DataRow dr in dtTaxJobCosts.Rows)
                         {
