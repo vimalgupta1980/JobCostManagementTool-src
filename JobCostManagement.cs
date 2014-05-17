@@ -97,7 +97,7 @@ namespace Syscon.JobCostManagementTool
                 //Get cost codes from cstcde
                 DataTable costCodeDt = con.GetDataTable("CostCode", "Select recnum, cdenme from cstcde order by recnum");
                 cboCostCode.DataSource = (from s in costCodeDt.Rows.ToIEnumerable()
-                                          select (Convert.ToInt32(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
+                                          select (Convert.ToDecimal(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
             }            
 
             cboTaxPartClass.SelectedItem    = partClass;
@@ -231,6 +231,11 @@ namespace Syscon.JobCostManagementTool
                                 select Convert.ToInt64(x["recnum"])).ToArray();
                     }
                 }
+                else
+                {
+                    //All jobs
+
+                }
 
                 var job_selector = new MultiJobSelector(jobs);
 
@@ -253,33 +258,48 @@ namespace Syscon.JobCostManagementTool
                             if (this.radScanJobForTax.Checked)
                             {
                                 FillTaxPartInfo(out taxPartClassId);
-
-                                foreach (long jobNum in jobnums)
+                                using (var progress = new ProgressDialog((4 * jobnums.Length) + 2))
                                 {
-                                    // This routine scans job costs for tax liabilities
-                                    jobCostDB.ScanForTaxLiability(jobNum, phaseNum, taxPartClassId);
+                                    progress.Tick();
+                                    progress.Text = "Starting scanning job costs for tax liabilities";
+                                    progress.Show();
+
+                                    foreach (long jobNum in jobnums)
+                                    {
+                                        // This routine scans job costs for tax liabilities
+                                        jobCostDB.ScanForTaxLiability(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, taxPartClassId, progress);
+                                    }
+
+                                    progress.Tick();
+                                    progress.Text = "Finished scanning job costs for tax liabilities";
                                 }
 
-                                MessageBox.Show("Finished scanning jobs for tax liabilities");
+                                //MessageBox.Show("Finished scanning jobs for tax liabilities");
                             }
 
                             // OPTION 2
                             if (this.radCombineForBilling.Checked)
-                            {
-                                //Save the start and end date to config
-                                Env.SetConfigVar("StartDate", dteStartDate.Value);
-                                Env.SetConfigVar("EndDate", dteEndDate.Value);
-                                
+                            {                                
                                 FillCostCodeInfo(out costCode);
 
-                                foreach (long jobNum in jobnums)
+                                using (var progress = new ProgressDialog((10 * jobnums.Length) + 2))
                                 {
-                                    // The next two procedures are run together to create billable cost records that 
-                                    // are combined from distinct job cost records by cost type.
-                                    jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, costCode);
-                                    jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum);
+                                    progress.Tick();
+                                    progress.Text = "Starting job cost consolidation";
+                                    progress.Show();
+
+                                    foreach (long jobNum in jobnums)
+                                    {
+                                        // The next two procedures are run together to create billable cost records that 
+                                        // are combined from distinct job cost records by cost type.                                       
+                                        jobCostDB.ConsolidateJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, costCode, progress);
+                                        jobCostDB.UpdateTMTJobCost(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, progress);
+                                    }
+
+                                    progress.Tick();
+                                    progress.Text = "Finished job cost consolidation";
                                 }
-                                MessageBox.Show("Finished consolidating job costs");
+                                //MessageBox.Show("Finished consolidating job costs");
                             }
                         }
                         catch (Exception ex)
@@ -313,6 +333,18 @@ namespace Syscon.JobCostManagementTool
             {
                 txtDataDir.Text = mbapi.smartGetSMBDir();
             }
+        }
+
+        private void dteStartDate_ValueChanged(object sender, EventArgs e)
+        {
+            //Save the start date to config
+            Env.SetConfigVar("StartDate", dteStartDate.Value);
+        }
+
+        private void dteEndDate_ValueChanged(object sender, EventArgs e)
+        {
+            //Save the end date to config
+            Env.SetConfigVar("EndDate", dteEndDate.Value);
         }
 
         private void radioShowAllJobs_CheckedChanged(object sender, EventArgs e)
@@ -420,7 +452,7 @@ namespace Syscon.JobCostManagementTool
             }
         }
 
-        #endregion
+        #endregion        
 
     }
 }

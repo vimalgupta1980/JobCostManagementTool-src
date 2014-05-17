@@ -24,10 +24,12 @@ namespace Syscon.JobCostManagementTool
         /// accrued on the invoice from which this job cost originated, we create a job 
         /// cost record.
         /// </summary>
+        /// <param name="startDate"></param>
+        /// <param name="endDate"></param>
         /// <param name="jobNumber"></param>
         /// <param name="jobPhase"></param>
         /// <param name="taxPartClassId"></param>
-        public void ScanForTaxLiability(long jobNumber, long jobPhase, int taxPartClassId)
+        public void ScanForTaxLiability(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int taxPartClassId, ProgressDialog progress)
         {
             //This part classification indicates which parts are considered tax parts
             int taxPartClass = taxPartClassId;
@@ -51,6 +53,9 @@ namespace Syscon.JobCostManagementTool
                     //Setting to zero. not needed for now.
                     jobPhase = 0;
 
+                    progress.Tick();
+                    progress.Text = string.Format("Scanning job# {0}", jobNumber);
+
                     //Get the tax rate details
                     int taxCode = con.GetScalar<int>("SELECT slstax from actrec where recnum = {0}", jobNumber);
                     string taxDetail = con.GetScalar<string>("Select ntetxt from taxdst where recnum = {0}", taxCode);
@@ -67,7 +72,8 @@ namespace Syscon.JobCostManagementTool
                     fldCount = con.ExecuteNonQuery("SELECT * FROM jobcst "
                                                     + "WHERE jobnum = {0} "
                                                     + "AND phsnum = {1} "
-                                                    + "AND status = 1 AND bllsts = 1 INTO Table {2}", jobNumber, jobPhase, ActiveJobCosts);
+                                                    + "AND status = 1 AND bllsts = 1 AND jobcst.trndte >= {2} AND jobcst.trndte <= {3} "
+                                                    + "INTO Table {4}", jobNumber, jobPhase, startDate.ToFoxproDate(), endDate.ToFoxproDate(), ActiveJobCosts);
 
                     //Identify for each active job cost record if a tax burden has been applied in the
                     //entry of the originating transactions.   For now, that is only AP entries
@@ -85,6 +91,9 @@ namespace Syscon.JobCostManagementTool
                                                 + "JOIN {0} ajc ON a.recnum = ajc.aprecnum "
                                                 + "LEFT JOIN tkfprt t ON a.prtnum = t.recnum "
                                                 + "WHERE ajc.srcnum = 11 INTO TABLE {1}", ActiveJobCostsTmp, ActiveAPLines);                    
+                    
+                    progress.Tick();
+                    progress.Text = "Checking the tax accrual made on job cost";
 
                     //Mark each active job cost record as to whether there was a tax accrual/payment made on that
                     //job cost record.  This is done by counting the tax parts that were used on the invoice
@@ -119,6 +128,9 @@ namespace Syscon.JobCostManagementTool
                                         + "FROM {1} WHERE taxprtcnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {2}",
                                         DateTime.Today.ToFoxproDate(), ActiveJobCostsTmp, TaxJobCosts);
 
+                    progress.Tick();
+                    progress.Text = "Identifying the tax accrual records";
+
                     //Update the basic information to identify these as tax accrual records
                     DataTable taxJobCostDt = con.GetDataTable("TaxJobCosts", "select * from {0}", TaxJobCosts);
                     foreach (DataRow dr in taxJobCostDt.Rows)
@@ -138,10 +150,13 @@ namespace Syscon.JobCostManagementTool
                     //Set this so that FoxPro doesn't try to insert null values in empty columns
                     SetNullOff(con);
 
+                    progress.Tick();
+                    progress.Text = "Inserting tax records";
+
                     //Add the records
-                    int taxJobCostsCount = con.GetScalar<int>("select count(*) from {0}", TaxJobCosts);
+                    //int taxJobCostsCount = con.GetScalar<int>("select count(*) from {0}", TaxJobCosts);
                     DataTable dtTaxJobCosts = con.GetDataTable("TaxJobCosts","select * from {0}", TaxJobCosts);
-                    if (taxJobCostsCount > 0)
+                    if (dtTaxJobCosts != null && dtTaxJobCosts.Rows.Count > 0)
                     {
                         
                         //fldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
@@ -155,16 +170,20 @@ namespace Syscon.JobCostManagementTool
                         {
                             int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
                             DateTime trnDate = (DateTime)dr["trndte"];
-                            DateTime endDate = (DateTime)dr["entdte"];
+                            DateTime eDate = (DateTime)dr["entdte"];
+                            decimal cost = (decimal)dr["cstamt"];
 
-                            con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                                                                   + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme ) "
-                                                                   + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
-                                                                   + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
-                                                                   , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
-                                                                   endDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"], dr["csttyp"],
-                                                                   dr["cstamt"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], TaxJobCosts);                                    
-                            fldCount++;
+                            if (cost != 0)
+                            {
+                                con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
+                                                                       + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme ) "
+                                                                       + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
+                                                                       + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
+                                                                       , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
+                                                                       eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"], dr["csttyp"],
+                                                                       dr["cstamt"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], TaxJobCosts);
+                                fldCount++;
+                            }
                         }
                         Env.Log("{0} fields inserted in table jobcst", fldCount);
                     }
@@ -184,7 +203,7 @@ namespace Syscon.JobCostManagementTool
         /// <param name="jobNumber"></param>
         /// <param name="jobPhase"></para
         /// <param name="costCode"></param>
-        public void ConsolidateJobCost(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int costCode)
+        public void ConsolidateJobCost(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int costCode, ProgressDialog progress)
         {
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
@@ -200,18 +219,29 @@ namespace Syscon.JobCostManagementTool
                 {
                     Env.Log("Job cost consolidation started for job number: {0}", jobNumber);
 
+                    progress.Tick();
+                    progress.Text = string.Format("Job cost consolidation started for job# {0}", jobNumber);
+
                     jobPhase = 0;
+                    int modifiedFldCount = 0;
 
                     //Get list of active job cost records to be billed
-                    con.ExecuteNonQuery("SELECT * FROM jobcst WHERE jobnum = {0} AND phsnum = {1} AND status = 1 AND bllsts = 1 INTO TABLE {2}",
-                                            jobNumber, jobPhase, ActiveJobCosts);
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE jobnum = {0} "
+                                                            + "AND phsnum = {1} AND status = 1 AND bllsts = 1 "
+                                                            + "AND jobcst.trndte >= {2} AND jobcst.trndte <= {3} INTO TABLE {4}",
+                                                             jobNumber, jobPhase, startDate.ToFoxproDate(), endDate.ToFoxproDate(), ActiveJobCosts);
+
+                    progress.Tick();
+                    progress.Text = string.Format("Getting list of contract and subcontract material records\n to be combined by cost code");
 
                     //Get the list of Material Records to be combined by cost type
-                    con.ExecuteNonQuery("SELECT * FROM {0} WHERE csttyp = 1 INTO TABLE {1}", ActiveJobCosts, MatCosts);
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM {0} WHERE csttyp = 1 INTO TABLE {1}", ActiveJobCosts, MatCosts);
 
                     //Get the list of Subcontract Material Records to be combined by cost type
-                    con.ExecuteNonQuery("SELECT * FROM {0} WHERE csttyp = 7 INTO TABLE {1}", ActiveJobCosts, SubMatCosts);
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM {0} WHERE csttyp = 7 INTO TABLE {1}", ActiveJobCosts, SubMatCosts);
 
+                    progress.Tick();
+                    progress.Text = string.Format("Consolidating into a single billing record");
                     //
                     DataTable _matCosts = con.GetDataTable("MatCosts", "Select * from {0}", MatCosts);
                     string MatCostDetail = "The following job cost records have been consolidated into a single billing record:" + "|";
@@ -232,17 +262,20 @@ namespace Syscon.JobCostManagementTool
                     }
                     Env.Log("Sub-material cost detail memo: {0}", SubMatDetail);
 
+                    progress.Tick();
+                    progress.Text = string.Format("Combining material costs into a single record");
+
                     //Combine the material costs into a single record for appending to the actual job costs
                     int matCostCount = con.GetScalar<int>("select count(*) from {0}", MatCosts);
                     if (matCostCount > 0)
                     {
                         string formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "Mat");
 
-                        con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Materials\" as dscrpt, {3} as trndte,"
-                                            + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                            + "{5} as cstcde, 1 as csttyp, SUM(cstamt) as blgamt, 1 as ovrrde, \"Combine\" as usrnme "
-                                            + "FROM {6} INTO TABLE {7}",
-                                            jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, MatCosts, NewMatCosts);
+                        modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Materials\" as dscrpt, {3} as trndte,"
+                                                + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
+                                                + "{5} as cstcde, 1 as csttyp, SUM(cstamt) as blgamt, 1 as ovrrde, \"Combine\" as usrnme "
+                                                + "FROM {6} INTO TABLE {7}",
+                                                jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, MatCosts, NewMatCosts);
                     }
 
                     int subMatCostCount = con.GetScalar<int>("select count(*) from {0}", SubMatCosts);
@@ -250,7 +283,7 @@ namespace Syscon.JobCostManagementTool
                     {
                         string formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "SubMat");
 
-                        con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Subcontract Materials\" as dscrpt, "
+                        modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Subcontract Materials\" as dscrpt, "
                                                     + "{3} as trndte, {4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
 			                                        + "{5} as cstcde, 7 as csttyp, SUM(cstamt) as blgamt, 1 as ovrrde, \"Combine\" as usrnme "
                                                     + "FROM {6} INTO TABLE {7}",
@@ -258,31 +291,85 @@ namespace Syscon.JobCostManagementTool
                     }
 
                     SetNullOff(con);
-                    int modifiedFldCount = 0;
+
+                    progress.Tick();
+                    progress.Text = string.Format("Inserting material cost records into jobcst table");                    
+
+                    if (System.IO.File.Exists(NewMatCosts.filename))
+                    {
+                        DataTable matCostDetails = con.GetDataTable("TaxJobCosts", "select * from {0}", NewMatCosts);
+                        if (matCostDetails != null && matCostDetails.Rows.Count > 0)
+                        {
+                            foreach (DataRow dr in matCostDetails.Rows)
+                            {
+                                int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
+                                DateTime trnDate = (DateTime)dr["trndte"];
+                                DateTime eDate = (DateTime)dr["entdte"];
+
+                                modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                                                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
+                                                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
+                                                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
+                                                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
+                                                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], MatCostDetail);
+                                modifiedFldCount++;
+                            }
+                        }
+                    }
+
 
                     //Execute the updates
                     //Add the records
-                    if (matCostCount > 0)
+                    //if (matCostCount > 0)
+                    //{
+                    //    //Working - But inserts the same recnum for all entries
+                    //    modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                    //                                            + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                    //                                            + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
+                    //                                            + "_NewMatCosts.*, \"{0}\" as ntetxt FROM {1} _NewMatCosts", MatCostDetail, NewMatCosts);
+
+                    //    Env.Log("Inserted {0} material cost records in jobcst table.", modifiedFldCount);
+                    //}
+
+                    progress.Tick();
+                    progress.Text = string.Format("Inserting sub material cost records into jobcst table");
+
+                    if (System.IO.File.Exists(NewSubMatCosts.filename))
                     {
-                        modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
-                                                                + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                                                + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
-                                                                + "_NewMatCosts.*, \"{0}\" as ntetxt FROM {1} _NewMatCosts", MatCostDetail, NewMatCosts);
-                        Env.Log("Inserted {0} material cost records in jobcst table.", modifiedFldCount);
+                        DataTable subMatCostDetails = con.GetDataTable("TaxJobCosts", "select * from {0}", NewSubMatCosts);
+                        if (subMatCostDetails != null && subMatCostDetails.Rows.Count > 0)
+                        {
+                            foreach (DataRow dr in subMatCostDetails.Rows)
+                            {
+                                int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
+                                DateTime trnDate = (DateTime)dr["trndte"];
+                                DateTime eDate = (DateTime)dr["entdte"];
+
+                                modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                                                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
+                                                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
+                                                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
+                                                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
+                                                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], SubMatDetail);
+                                modifiedFldCount++;
+                            }
+                        }
                     }
-                    
-                    if (subMatCostCount > 0)
-                    {
-                        modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, status, "
-                                                                + "bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                                                + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
-                                                                + "_NewSubMatCosts.*, \"{0}\" FROM {1} _NewSubMatCosts", SubMatDetail, NewSubMatCosts);
-                        Env.Log("Inserted {0} sub-material cost records in jobcst table.", modifiedFldCount);
-                    }
+
+                    //if (subMatCostCount > 0)
+                    //{
+                    //    modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, status, "
+                    //                                            + "bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                    //                                            + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
+                    //                                            + "_NewSubMatCosts.*, \"{0}\" FROM {1} _NewSubMatCosts", SubMatDetail, NewSubMatCosts);
+                    //    Env.Log("Inserted {0} sub-material cost records in jobcst table.", modifiedFldCount);
+                    //}
 
                     //Finally, set all the billing status to non-billable for materials and subcontract materiasl
                     modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET jobcst.bllsts = 2 from {0} _ActiveJobCosts WHERE jobcst.recnum = _ActiveJobCosts.recnum "
-	                                    + "AND INLIST(_ActiveJobCosts.csttyp,1,7)", ActiveJobCosts);
+	                                                        + "AND INLIST(_ActiveJobCosts.csttyp,1,7)", ActiveJobCosts);
                     Env.Log("Updated billing status of {0} records in jobcst table.", modifiedFldCount);
                 }
 
@@ -297,7 +384,7 @@ namespace Syscon.JobCostManagementTool
         /// <param name="endDate"></param>
         /// <param name="jobNumber"></param>
         /// <param name="jobPhase"></param>
-        public void UpdateTMTJobCost(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase)
+        public void UpdateTMTJobCost(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, ProgressDialog progress)
         {
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
@@ -309,6 +396,8 @@ namespace Syscon.JobCostManagementTool
                         ACRInvList = con.GetTempDBF()
                     )
                 {
+                    progress.Tick();
+                    progress.Text = string.Format("Start updating the TMT job costs");
 
                     //Find all the consolidated job costs in the selected time period
                     //That have been invoiced through T&M
@@ -316,7 +405,10 @@ namespace Syscon.JobCostManagementTool
                                                     + "AND usrnme == \"Combine\" into table {2}", startDate.ToFoxproDate(), endDate.ToFoxproDate(), CombinedCosts);
 
                     //Build a list of the job cost records that must be updated with the AR T&M invoice number
-                    con.ExecuteNonQuery("create table {0} (recnum		n(10,0), acrinv		n(10,0))", RecordList);                    
+                    con.ExecuteNonQuery("create table {0} (recnum		n(10,0), acrinv		n(10,0))", RecordList);
+                    
+                    progress.Tick();
+                    progress.Text = string.Format("Reading from the memo fields of Combined Costs");
 
                     //Read each record from the memo fields of the Combined Costs
                     DataTable _combinedCosts = con.GetDataTable("CombinedCosts", "SELECT * FROM {0}", CombinedCosts);
@@ -341,6 +433,9 @@ namespace Syscon.JobCostManagementTool
 
                     fldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", CombinedCosts, ACRInvList);
 
+                    progress.Tick();
+                    progress.Text = string.Format("Updating TMT job cost records");
+
                     //Reset all the records to blank 
                     fldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = 0 from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv", ACRInvList);
 
@@ -351,6 +446,10 @@ namespace Syscon.JobCostManagementTool
                     //Update the combined records
                     fldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _RecordList.acrinv from {0} _RecordList WHERE _RecordList.recnum = jobcst.recnum", RecordList);
                 }
+
+                progress.Tick();
+                progress.Text = string.Format("Finished updating the TMT job costs");
+
                 //Set default null setting to on again
                 SetNullOn(con);
             }

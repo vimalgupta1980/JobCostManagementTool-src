@@ -66,18 +66,18 @@
             this.txtDataDir.Location = new System.Drawing.Point(15, 47);
             this.txtDataDir.Name = "txtDataDir";
             this.txtDataDir.ReadOnly = true;
-            this.txtDataDir.Size = new System.Drawing.Size(438, 20);
+            this.txtDataDir.Size = new System.Drawing.Size(449, 20);
             this.txtDataDir.TabIndex = 2;
             this.txtDataDir.TextChanged += new System.EventHandler(this.txtDataDir_TextChanged);
             // 
             // btnUpdateJobCost
             // 
             this.btnUpdateJobCost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnUpdateJobCost.Location = new System.Drawing.Point(459, 315);
+            this.btnUpdateJobCost.Location = new System.Drawing.Point(443, 293);
             this.btnUpdateJobCost.Name = "btnUpdateJobCost";
-            this.btnUpdateJobCost.Size = new System.Drawing.Size(98, 23);
+            this.btnUpdateJobCost.Size = new System.Drawing.Size(125, 42);
             this.btnUpdateJobCost.TabIndex = 4;
-            this.btnUpdateJobCost.Text = "&Update Job Costs";
+            this.btnUpdateJobCost.Text = "Select &Jobs To Update";
             this.btnUpdateJobCost.UseVisualStyleBackColor = true;
             this.btnUpdateJobCost.Click += new System.EventHandler(this.btnUpdateJobCost_Click);
             // 
@@ -194,6 +194,7 @@
             this.dteStartDate.Name = "dteStartDate";
             this.dteStartDate.Size = new System.Drawing.Size(210, 20);
             this.dteStartDate.TabIndex = 17;
+            this.dteStartDate.ValueChanged += new System.EventHandler(this.dteStartDate_ValueChanged);
             // 
             // label1
             // 
@@ -207,7 +208,7 @@
             // btnSMBDir
             // 
             this.btnSMBDir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnSMBDir.Location = new System.Drawing.Point(459, 45);
+            this.btnSMBDir.Location = new System.Drawing.Point(470, 45);
             this.btnSMBDir.Name = "btnSMBDir";
             this.btnSMBDir.Size = new System.Drawing.Size(98, 23);
             this.btnSMBDir.TabIndex = 20;
@@ -240,7 +241,7 @@
             this.grpBoxSelOptions.Controls.Add(this.radScanJobForTax);
             this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 274);
             this.grpBoxSelOptions.Name = "grpBoxSelOptions";
-            this.grpBoxSelOptions.Size = new System.Drawing.Size(441, 75);
+            this.grpBoxSelOptions.Size = new System.Drawing.Size(421, 75);
             this.grpBoxSelOptions.TabIndex = 27;
             this.grpBoxSelOptions.TabStop = false;
             this.grpBoxSelOptions.Text = "Job cost selection option";
@@ -282,6 +283,7 @@
             this.dteEndDate.Name = "dteEndDate";
             this.dteEndDate.Size = new System.Drawing.Size(210, 20);
             this.dteEndDate.TabIndex = 30;
+            this.dteEndDate.ValueChanged += new System.EventHandler(this.dteEndDate_ValueChanged);
             // 
             // cboCostCode
             // 
@@ -306,7 +308,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(574, 362);
+            this.ClientSize = new System.Drawing.Size(585, 362);
             this.Controls.Add(this.cboCostCode);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.lblEndDate);
