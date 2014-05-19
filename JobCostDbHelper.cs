@@ -234,7 +234,7 @@ namespace Syscon.JobCostManagementTool
                     //Get list of active job cost records to be billed
                     modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE jobnum = {0} "
                                                             + "AND phsnum = {1} AND status = 1 AND bllsts = 1 "
-                                                            + "AND jobcst.trndte >= {2} AND jobcst.trndte <= {3} INTO TABLE {4}",
+                                                            + "AND jobcst.trndte >= {2} AND jobcst.trndte <= {3} AND usrnme <> \"Combine\" INTO TABLE {4}",
                                                              jobNumber, jobPhase, startDate.ToFoxproDate(), endDate.ToFoxproDate(), ActiveJobCosts);
 
                     progress.Tick();

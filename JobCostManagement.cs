@@ -150,14 +150,14 @@ namespace Syscon.JobCostManagementTool
             Env.SetConfigVar("product_id", 322504);
             
             var product_id = Env.GetConfigVar("product_id", 0, false);
-            var product_version = "1.0.0.0";
+            var product_version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             bool require_login = false;
 
             if (!loaded)
             {
                 require_login = true;
                 loaded = true;
-                this.Text += " (version " + Assembly.GetExecutingAssembly().GetName().Version.ToString() + ")";
+                this.Text += " (version " + product_version + ")";
             }
 
             try
