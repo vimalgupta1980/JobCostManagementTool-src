@@ -29,7 +29,8 @@ namespace Syscon.JobCostManagementTool
         /// <param name="jobNumber"></param>
         /// <param name="jobPhase"></param>
         /// <param name="taxPartClassId"></param>
-        public void ScanForTaxLiability(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int taxPartClassId, ProgressDialog progress)
+        /// <param name="acctPeriod">Accounting period.</param>
+        public void ScanForTaxLiability(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int taxPartClassId, int acctPeriod, ProgressDialog progress)
         {
             //This part classification indicates which parts are considered tax parts
             int taxPartClass = taxPartClassId;
@@ -60,7 +61,7 @@ namespace Syscon.JobCostManagementTool
                     int taxCode = con.GetScalar<int>("SELECT slstax from actrec where recnum = {0}", jobNumber);
                     string taxDetail = con.GetScalar<string>("Select ntetxt from taxdst where recnum = {0}", taxCode);
 
-                    FillTaxRates(taxRates, taxDetail);
+                    FillTaxRates(ref taxRates, taxDetail);
                     
                     //Get the list of active tax rate parts for reference
                     int fldCount = con.ExecuteNonQuery("SELECT	recnum, prtnme, prtunt, csttyp, prtcls, prtcst FROM tkfprt WHERE prtcls = {0} "
@@ -80,7 +81,7 @@ namespace Syscon.JobCostManagementTool
                     //Get the list of AP invoices associated with the job costs
                     fldCount = con.ExecuteNonQuery("SELECT ajc.*, NVL(a.recnum, 00000000) as aprecnum, NVL(a.invnum, SPACE(15)) as apinvnum, 000 as taxprtcnt, "
                                                     + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\",LEN(trnnum)) as TaxTrnNum, 000 as taxAccCnt "
-                                                    + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec "
+                                                    + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec WHERE a.status <> 2 "
                                                     + "INTO Table {1}", ActiveJobCosts, ActiveJobCostsTmp);
 
                     //Get the list of AP lines used to generate the job costs
@@ -186,7 +187,7 @@ namespace Syscon.JobCostManagementTool
                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
                                                                        + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
                                                                        , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
-                                                                       eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"], dr["csttyp"],
+                                                                       eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"], dr["csttyp"],
                                                                        dr["cstamt"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], TaxJobCosts);
                                 fldCount++;
                             }
@@ -480,7 +481,81 @@ namespace Syscon.JobCostManagementTool
             dbCmdNull.ExecuteNonQuery();
         }
 
-        private void FillTaxRates(double[] taxRates, string taxDetail)
+        /// <summary>
+        /// Fill the tax rate details from the taxdst.ntetxt data.
+        /// This function assumes that the base rate info will be available.
+        /// </summary>
+        /// <param name="taxRates"></param>
+        /// <param name="taxDetail"></param>
+        private void FillTaxRates(ref double[] taxRates, string taxDetail)
+        {
+            double baseRate = 0.0;
+
+            try
+            {
+                if (string.IsNullOrEmpty(taxDetail))
+                {
+                    Env.Log("The tax detail string is empty.");
+                    return;
+                }
+
+                //Parse the taxDetails to get the tax rates
+                List<string> taxDetails = taxDetail.ToLower().Split('|').ToList();
+                //if (taxDetails.Count > 0 && taxDetails.Count < 12)
+                //{
+                //    //Format incorrect
+                //    throw new InvalidOperationException("The format of data in memo field taxdst.ntetxt is invalid .");
+                //}
+
+                //Get base rate
+                string baseRateStr = taxDetails.Find(s => s.Contains("base use tax rate"));
+                string[] baseRates = baseRateStr.Split('=');
+                if (baseRates.Length == 2)
+                {
+                    double.TryParse(baseRates[1].Trim(' ', ']'), out baseRate);
+                }
+                else
+                {
+                    Env.Log("The base rate information is not available in the corresponding taxdst.ntetxt memo data.");
+                    return;
+                }
+                
+
+                //Fill the default base rate
+                taxRates = Enumerable.Repeat<double>(baseRate, 9).ToArray();
+
+                //Find the starting and ending indexes for parsing the strings
+                int startIndex = taxDetails.FindIndex(s => s == "[cost type % of base rate]");
+                int endIndex = taxDetails.FindIndex(s => s == "[end]");
+
+                for (int i = startIndex + 1; i < endIndex; i++)
+                {
+                    double val = 0.0;
+                    int idx = 0;
+                    string[] rates = taxDetails[i].Split('=');
+                    if (rates.Length == 2 && (!string.IsNullOrEmpty(rates[1].Trim())))
+                    {
+                        int.TryParse(rates[0], out idx);
+                        double.TryParse(rates[1].Trim(), out val);
+
+                        if (idx > 0 && idx < 9)
+                            taxRates[idx - 1] = baseRate * (val / 100);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Env.Log("Error parsing tax rate info from table taxdst. Exception : {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// This is the old logic. 
+        /// TODO: remove later
+        /// </summary>
+        /// <param name="taxRates"></param>
+        /// <param name="taxDetail"></param>
+        private void FillTaxRates_Old(double[] taxRates, string taxDetail)
         {
             double baseRate = 0.0;
 
@@ -491,7 +566,7 @@ namespace Syscon.JobCostManagementTool
 
                 //Parse the taxDetails to get the tax rates
                 string[] taxDetails = taxDetail.Split('|');
-                if (taxDetails.Length > 0 && taxDetails.Length < 13)
+                if (taxDetails.Length > 0 && taxDetails.Length < 12)
                 {
                     //Format incorrect
                     throw new InvalidOperationException("The format of data in memo field taxdst.ntetxt is invalid .");

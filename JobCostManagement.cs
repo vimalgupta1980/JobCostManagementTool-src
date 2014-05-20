@@ -86,6 +86,7 @@ namespace Syscon.JobCostManagementTool
             string partClass    = Env.GetConfigVar("taxPartClass", "0", true);
             string phaseNum     = Env.GetConfigVar("PhaseNum", "0", true);
             string costCode     = Env.GetConfigVar("CostCode", "0", true);
+            string acctPeriod   = Env.GetConfigVar("AcctPeriod", "1", true);
 
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
@@ -102,6 +103,7 @@ namespace Syscon.JobCostManagementTool
 
             cboTaxPartClass.SelectedItem    = partClass;
             cboCostCode.SelectedItem        = costCode;
+            cboAcctPeriod.SelectedItem      = acctPeriod;
 
             radioShowAllJobs.Checked = Env.GetConfigVar("ShowAllJobs", false, false);
             radioShowTMJobs.Checked = Env.GetConfigVar("ShowTnMJobs", false, false);
@@ -257,6 +259,8 @@ namespace Syscon.JobCostManagementTool
                             // OPTION 1
                             if (this.radScanJobForTax.Checked)
                             {
+                                int acctPeriod = Convert.ToInt32(cboAcctPeriod.SelectedItem);
+
                                 FillTaxPartInfo(out taxPartClassId);
                                 using (var progress = new ProgressDialog((4 * jobnums.Length) + 2))
                                 {
@@ -267,7 +271,7 @@ namespace Syscon.JobCostManagementTool
                                     foreach (long jobNum in jobnums)
                                     {
                                         // This routine scans job costs for tax liabilities
-                                        jobCostDB.ScanForTaxLiability(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, taxPartClassId, progress);
+                                        jobCostDB.ScanForTaxLiability(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, taxPartClassId, acctPeriod, progress);
                                     }
 
                                     progress.Tick();
@@ -323,6 +327,11 @@ namespace Syscon.JobCostManagementTool
         private void cboCostCode_SelectedIndexChanged(object sender, EventArgs e)
         {
             Env.SetConfigVar("CostCode", cboCostCode.SelectedItem);
+        }
+
+        private void cboAcctPeriod_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            Env.SetConfigVar("AcctPeriod", cboAcctPeriod.SelectedItem);
         }
 
         private void btnSMBDir_Click(object sender, EventArgs e)
@@ -452,7 +461,7 @@ namespace Syscon.JobCostManagementTool
             }
         }
 
-        #endregion        
+        #endregion      
 
     }
 }

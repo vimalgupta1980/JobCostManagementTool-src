@@ -55,6 +55,9 @@
             this.dteEndDate = new System.Windows.Forms.DateTimePicker();
             this.cboCostCode = new SysconCommon.GUI.SearchableComboBox();
             this.label6 = new System.Windows.Forms.Label();
+            this.lblJobCostMsg = new System.Windows.Forms.Label();
+            this.cboAcctPeriod = new SysconCommon.GUI.SearchableComboBox();
+            this.label2 = new System.Windows.Forms.Label();
             this.menuStrip1.SuspendLayout();
             this.grpBoxSelOptions.SuspendLayout();
             this.SuspendLayout();
@@ -73,7 +76,7 @@
             // btnUpdateJobCost
             // 
             this.btnUpdateJobCost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnUpdateJobCost.Location = new System.Drawing.Point(443, 293);
+            this.btnUpdateJobCost.Location = new System.Drawing.Point(443, 331);
             this.btnUpdateJobCost.Name = "btnUpdateJobCost";
             this.btnUpdateJobCost.Size = new System.Drawing.Size(125, 42);
             this.btnUpdateJobCost.TabIndex = 4;
@@ -239,7 +242,7 @@
             // 
             this.grpBoxSelOptions.Controls.Add(this.radCombineForBilling);
             this.grpBoxSelOptions.Controls.Add(this.radScanJobForTax);
-            this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 274);
+            this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 311);
             this.grpBoxSelOptions.Name = "grpBoxSelOptions";
             this.grpBoxSelOptions.Size = new System.Drawing.Size(421, 75);
             this.grpBoxSelOptions.TabIndex = 27;
@@ -298,17 +301,61 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(40, 233);
+            this.label6.Location = new System.Drawing.Point(29, 237);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(56, 13);
             this.label6.TabIndex = 32;
             this.label6.Text = "Cost Code";
             // 
+            // lblJobCostMsg
+            // 
+            this.lblJobCostMsg.AutoSize = true;
+            this.lblJobCostMsg.Location = new System.Drawing.Point(312, 237);
+            this.lblJobCostMsg.Name = "lblJobCostMsg";
+            this.lblJobCostMsg.Size = new System.Drawing.Size(163, 13);
+            this.lblJobCostMsg.TabIndex = 34;
+            this.lblJobCostMsg.Text = "(Only used for Job Cost Combine)";
+            // 
+            // cboAcctPeriod
+            // 
+            this.cboAcctPeriod.ConfigVarName = null;
+            this.cboAcctPeriod.FormattingEnabled = true;
+            this.cboAcctPeriod.Items.AddRange(new object[] {
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12"});
+            this.cboAcctPeriod.Location = new System.Drawing.Point(245, 270);
+            this.cboAcctPeriod.Name = "cboAcctPeriod";
+            this.cboAcctPeriod.Size = new System.Drawing.Size(61, 21);
+            this.cboAcctPeriod.TabIndex = 36;
+            this.cboAcctPeriod.SelectedIndexChanged += new System.EventHandler(this.cboAcctPeriod_SelectedIndexChanged);
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(12, 273);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(227, 13);
+            this.label2.TabIndex = 35;
+            this.label2.Text = "Select Posting Period for Tax Liability Records:";
+            // 
             // JobCostManagement
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(585, 362);
+            this.ClientSize = new System.Drawing.Size(585, 400);
+            this.Controls.Add(this.cboAcctPeriod);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.lblJobCostMsg);
             this.Controls.Add(this.cboCostCode);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.lblEndDate);
@@ -328,6 +375,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.MaximizeBox = false;
+            this.MaximumSize = new System.Drawing.Size(601, 438);
             this.MinimumSize = new System.Drawing.Size(590, 400);
             this.Name = "JobCostManagement";
             this.Text = "Syscon Job Cost Management Tool";
@@ -369,6 +417,9 @@
         private System.Windows.Forms.DateTimePicker dteEndDate;
         private SysconCommon.GUI.SearchableComboBox cboCostCode;
         private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Label lblJobCostMsg;
+        private SysconCommon.GUI.SearchableComboBox cboAcctPeriod;
+        private System.Windows.Forms.Label label2;
 
 
     }
