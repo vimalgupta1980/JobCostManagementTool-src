@@ -307,72 +307,96 @@ namespace Syscon.JobCostManagementTool
                         DataTable matCostDetails = con.GetDataTable("TaxJobCosts", "select * from {0}", NewMatCosts);
                         if (matCostDetails != null && matCostDetails.Rows.Count > 0)
                         {
+                            //Add the recnum and ntetxt column
+                            matCostDetails.Columns.Add("recnum",typeof(decimal));
+                            matCostDetails.Columns.Add("ntetxt");
+
                             foreach (DataRow dr in matCostDetails.Rows)
                             {
                                 int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
-                                DateTime trnDate = (DateTime)dr["trndte"];
-                                DateTime eDate = (DateTime)dr["entdte"];
+                                //DateTime trnDate = (DateTime)dr["trndte"];
+                                //DateTime eDate = (DateTime)dr["entdte"];
 
-                                modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
-                                                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
-                                                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
-                                                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
-                                                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
-                                                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], MatCostDetail);
+                                //Working code. Exceptions with some data.
+                                //modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                                //                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                                //                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
+                                //                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
+                                //                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
+                                //                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
+                                //                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], MatCostDetail);
+
+                                ////Using standard way to insert data
+                                //var jobcst_row = con.GetDataTable("Job Cost", "select * from {0} where recnum = {0}", NewMatCosts, dr["recnum"]).Rows[0];
+                                //jobcst_row["recnum"] = recNum;
+                                //jobcst_row["jobnum"] = dr["jobnum"];
+                                //jobcst_row["phsnum"] = dr["phsnum"];
+                                //jobcst_row["trnnum"] = dr["trnnum"];
+                                //jobcst_row["dscrpt"] = dr["dscrpt"];
+                                //jobcst_row["trndte"] = trnDate.ToFoxproDate();
+                                //jobcst_row["entdte"] = eDate.ToFoxproDate();
+                                //jobcst_row["actprd"] = dr["actprd"];
+                                //jobcst_row["srcnum"] = dr["srcnum"];
+                                //jobcst_row["status"] = dr["status"];
+                                //jobcst_row["bllsts"] = dr["bllsts"];
+                                //jobcst_row["cstcde"] = dr["cstcde"];
+                                //jobcst_row["blgamt"] = dr["blgamt"];
+                                //jobcst_row["ovrrde"] = dr["ovrrde"];
+                                //jobcst_row["usrnme"] = dr["usrnme"];
+                                //jobcst_row["ntetxt"] = MatCostDetail;                                
+
+                                //// insert the record
+                                //var sql = jobcst_row.FoxproInsertString("jobcst");
+                                //con.ExecuteNonQuery(sql);
+
+                                // insert the record
+                                dr["recnum"] = recNum;                              
+                                dr["ntetxt"] = MatCostDetail;
+                                var sql = dr.FoxproInsertString("jobcst");
+                                con.ExecuteNonQuery(sql);
+
                                 modifiedFldCount++;
                             }
                         }
                     }
-
-
-                    //Execute the updates
-                    //Add the records
-                    //if (matCostCount > 0)
-                    //{
-                    //    //Working - But inserts the same recnum for all entries
-                    //    modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
-                    //                                            + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                    //                                            + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
-                    //                                            + "_NewMatCosts.*, \"{0}\" as ntetxt FROM {1} _NewMatCosts", MatCostDetail, NewMatCosts);
-
-                    //    Env.Log("Inserted {0} material cost records in jobcst table.", modifiedFldCount);
-                    //}
 
                     progress.Tick();
                     progress.Text = string.Format("Inserting sub material cost records into jobcst table");
 
                     if (System.IO.File.Exists(NewSubMatCosts.filename))
-                    {
+                    {                       
                         DataTable subMatCostDetails = con.GetDataTable("TaxJobCosts", "select * from {0}", NewSubMatCosts);
                         if (subMatCostDetails != null && subMatCostDetails.Rows.Count > 0)
                         {
+                            //Add the recnum and ntetxt column
+                            subMatCostDetails.Columns.Add("recnum", typeof(decimal));
+                            subMatCostDetails.Columns.Add("ntetxt");
+
                             foreach (DataRow dr in subMatCostDetails.Rows)
                             {
                                 int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
-                                DateTime trnDate = (DateTime)dr["trndte"];
-                                DateTime eDate = (DateTime)dr["entdte"];
+                                //DateTime trnDate = (DateTime)dr["trndte"];
+                                //DateTime eDate = (DateTime)dr["entdte"];
 
-                                modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
-                                                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
-                                                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
-                                                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
-                                                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
-                                                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], SubMatDetail);
+                                //Working Query
+                                //modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, "
+                                //                                        + "status, bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
+                                //                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, {7}, {8}, "
+                                //                                        + "{9}, {10}, {11}, {12}, {13}, {14}, \"{15}\", \"{16}\")",
+                                //                                        recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
+                                //                                        eDate.ToFoxproDate(), dr["actprd"], dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"],
+                                //                                        dr["csttyp"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], SubMatDetail);
+
+                                // insert the record
+                                dr["recnum"] = recNum;
+                                dr["ntetxt"] = SubMatDetail;
+                                var sql = dr.FoxproInsertString("jobcst");
+                                con.ExecuteNonQuery(sql);
+
                                 modifiedFldCount++;
                             }
                         }
                     }
-
-                    //if (subMatCostCount > 0)
-                    //{
-                    //    modifiedFldCount = con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, wrkord, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, srcnum, status, "
-                    //                                            + "bllsts, cstcde, csttyp, blgamt, ovrrde, usrnme, ntetxt ) "
-                    //                                            + "SELECT (select MAX(recnum + 1) recnum FROM jobcst), '   ' as wrkord, "
-                    //                                            + "_NewSubMatCosts.*, \"{0}\" FROM {1} _NewSubMatCosts", SubMatDetail, NewSubMatCosts);
-                    //    Env.Log("Inserted {0} sub-material cost records in jobcst table.", modifiedFldCount);
-                    //}
 
                     //Finally, set all the billing status to non-billable for materials and subcontract materiasl
                     modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET jobcst.bllsts = 2 from {0} _ActiveJobCosts WHERE jobcst.recnum = _ActiveJobCosts.recnum "

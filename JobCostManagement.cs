@@ -77,6 +77,12 @@ namespace Syscon.JobCostManagementTool
                 }
             };
 #endif
+
+            cboTaxPartClass.DisplayMember = "Name";
+            cboTaxPartClass.ValueMember = null;
+
+            cboCostCode.DisplayMember = "Name";
+            cboCostCode.ValueMember = null;
         }
 
         #region Private Methods
@@ -87,22 +93,35 @@ namespace Syscon.JobCostManagementTool
             string phaseNum     = Env.GetConfigVar("PhaseNum", "0", true);
             string costCode     = Env.GetConfigVar("CostCode", "0", true);
             string acctPeriod   = Env.GetConfigVar("AcctPeriod", "1", true);
+            ComboBoxData[] taxPartData = null;
+            ComboBoxData[] costCodeData = null;
+            cboTaxPartClass.SelectedIndexChanged    -= cboTaxPartClass_SelectedIndexChanged;
+            cboCostCode.SelectedIndexChanged        -= cboCostCode_SelectedIndexChanged;
 
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
                 //Get clsnme values from prtcls and fill the part class combo box
                 DataTable partClassDt = con.GetDataTable("prtcls", "select recnum, clsnme from prtcls order by recnum");
-                cboTaxPartClass.DataSource = (from s in partClassDt.Rows.ToIEnumerable()
-                                              select (s[0].ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
+                taxPartData = partClassDt.Rows.Select(p => new ComboBoxData() { Name = (p[0].ToString().Trim() + "-" + p[1].ToString().Trim()), Value = p[0].ToString() }).ToArray();
+                cboTaxPartClass.DataSource = taxPartData;
+
+                //cboTaxPartClass.DataSource = (from s in partClassDt.Rows.ToIEnumerable()
+                //                              select (s[0].ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
 
                 //Get cost codes from cstcde
                 DataTable costCodeDt = con.GetDataTable("CostCode", "Select recnum, cdenme from cstcde order by recnum");
-                cboCostCode.DataSource = (from s in costCodeDt.Rows.ToIEnumerable()
-                                          select (Convert.ToDecimal(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
-            }            
+                //cboCostCode.DataSource = (from s in costCodeDt.Rows.ToIEnumerable()
+                //                          select (Convert.ToDecimal(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
 
-            cboTaxPartClass.SelectedItem    = partClass;
-            cboCostCode.SelectedItem        = costCode;
+                costCodeData = costCodeDt.Rows.Select(cc => new ComboBoxData() { Name = (cc[0].ToString().Trim() + "-" + cc[1].ToString().Trim()), Value = cc[0].ToString() }).ToArray();
+                cboCostCode.DataSource = costCodeData;
+
+            }
+            ComboBoxData taxPart = taxPartData.FirstOrDefault(d => d.Value == partClass);
+            ComboBoxData selectedCostCode = costCodeData.FirstOrDefault(c => c.Value == costCode);
+
+            cboTaxPartClass.SelectedItem    = (taxPart != null) ? taxPart : taxPartData[0];
+            cboCostCode.SelectedItem        = (selectedCostCode != null) ? selectedCostCode : costCodeData[0];
             cboAcctPeriod.SelectedItem      = acctPeriod;
 
             radioShowAllJobs.Checked = Env.GetConfigVar("ShowAllJobs", false, false);
@@ -115,7 +134,10 @@ namespace Syscon.JobCostManagementTool
             DateTime.TryParse(Env.GetConfigVar("EndDate"), out endDate);
 
             dteStartDate.Value = (startDate == DateTime.MinValue) ? DateTime.Now : startDate;
-            dteEndDate.Value = (endDate == DateTime.MinValue) ? DateTime.Now : endDate; ;
+            dteEndDate.Value = (endDate == DateTime.MinValue) ? DateTime.Now : endDate;
+
+            cboTaxPartClass.SelectedIndexChanged += cboTaxPartClass_SelectedIndexChanged;
+            cboCostCode.SelectedIndexChanged += cboCostCode_SelectedIndexChanged;
         }
 
         #endregion
@@ -232,12 +254,7 @@ namespace Syscon.JobCostManagementTool
                         jobs = (from x in con.GetDataTable("Jobnums", "select actrec.recnum from actrec join {0} jobtypes on actrec.jobtyp = jobtypes.jobtyp", jobtyps).Rows
                                 select Convert.ToInt64(x["recnum"])).ToArray();
                     }
-                }
-                else
-                {
-                    //All jobs
-
-                }
+                }                
 
                 var job_selector = new MultiJobSelector(jobs);
 
@@ -321,12 +338,14 @@ namespace Syscon.JobCostManagementTool
 
         private void cboTaxPartClass_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Env.SetConfigVar("taxPartClass", cboTaxPartClass.SelectedItem);
+            ComboBoxData data = (ComboBoxData)cboTaxPartClass.SelectedValue;
+            Env.SetConfigVar("taxPartClass", (data != null) ? data.Value : "0");
         }
 
         private void cboCostCode_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Env.SetConfigVar("CostCode", cboCostCode.SelectedItem);
+            ComboBoxData data = (ComboBoxData)cboCostCode.SelectedValue;
+            Env.SetConfigVar("CostCode", (data != null) ? data.Value : "0");
         }
 
         private void cboAcctPeriod_SelectedIndexChanged(object sender, EventArgs e)
@@ -464,4 +483,14 @@ namespace Syscon.JobCostManagementTool
         #endregion      
 
     }
+
+    public class ComboBoxData
+    {
+        public ComboBoxData()
+        {
+        }
+        public string Name { get; set; }
+        public string Value { get; set; }
+    }
+
 }
