@@ -456,12 +456,13 @@ namespace Syscon.JobCostManagementTool
 
             try
             {
-                //string clsName = cboTaxPartClass.SelectedItem.ToString().Split('-')[1];
-                taxPartId = Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);//con.GetScalar<int>("SELECT recnum from prtcls where clsnme = \"{0}\"", cboTaxPartClass.SelectedItem);
+                ComboBoxData taxPartData = (ComboBoxData)cboTaxPartClass.SelectedItem;
+                taxPartId = Convert.ToInt32(taxPartData.Value);//Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);
             }
             catch
             {
                 taxPartClassId = taxPartId;
+                Env.Log("Error in parsing tax part from tax part combo box selected value.");
             }
 
             taxPartClassId = taxPartId;
@@ -471,7 +472,8 @@ namespace Syscon.JobCostManagementTool
         {
             try
             {
-                costCode = Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
+                ComboBoxData costCodeData = (ComboBoxData)cboCostCode.SelectedItem;
+                costCode = (int)Convert.ToSingle(costCodeData.Value); ;// Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
             }
             catch
             {
