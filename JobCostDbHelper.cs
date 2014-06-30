@@ -432,8 +432,10 @@ namespace Syscon.JobCostManagementTool
 
                     //Find all the consolidated job costs in the selected time period
                     //That have been invoiced through T&M
-                    int fldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE status = 1 AND acrinv > 0 AND BETWEEN(trndte,{0},{1}) "
+                    int modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE status = 1 AND acrinv > 0 AND BETWEEN(trndte,{0},{1}) "
                                                     + "AND usrnme == \"Combine\" into table {2}", startDate.ToFoxproDate(), endDate.ToFoxproDate(), CombinedCosts);
+                    
+                    Env.Log("{0} T&M records found in jobcst table for updation.", modifiedFldCount);
 
                     //Build a list of the job cost records that must be updated with the AR T&M invoice number
                     con.ExecuteNonQuery("create table {0} (recnum		n(10,0), acrinv		n(10,0))", RecordList);
@@ -451,31 +453,33 @@ namespace Syscon.JobCostManagementTool
 
                         if (nteTxts.Length >= 2)
                         {
-                            for (int i = 1; i <= nteTxts.Length; i++)
+                            for (int i = 1; i < nteTxts.Length; i++)
                             {
                                 double recNum = 0.0;
                                 if (double.TryParse(nteTxts[i], out recNum))
-                                {
-                                    con.ExecuteNonQuery("INSERT INTO {0} VALUES (VAL({1}), {2}", RecordList, recNum, dr["acrinv"]);
+                                {                                    
+                                    con.ExecuteNonQuery("INSERT INTO {0} VALUES ({1}, {2})", RecordList, recNum, dr["acrinv"]);
                                 }
                             }
                         }
                     }
 
-                    fldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", CombinedCosts, ACRInvList);
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", CombinedCosts, ACRInvList);
 
                     progress.Tick();
                     progress.Text = string.Format("Updating TMT job cost records");
 
                     //Reset all the records to blank 
-                    fldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = 0 from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv", ACRInvList);
+                    modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = 0 from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv", ACRInvList);
 
                     //Now update the job cost records from the standardn, non-Combined records - excluding combined records
-                    fldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _ACRInvList.acrinv from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv "
+                    modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _ACRInvList.acrinv from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv "
                                                     + "AND jobcst.usrnme <> \"Combine\"", ACRInvList);
 
                     //Update the combined records
-                    fldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _RecordList.acrinv from {0} _RecordList WHERE _RecordList.recnum = jobcst.recnum", RecordList);
+                    modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _RecordList.acrinv from {0} _RecordList WHERE _RecordList.recnum = jobcst.recnum", RecordList);
+
+                    Env.Log("{0} T&M records updated in jobcst table.", modifiedFldCount);
                 }
 
                 progress.Tick();
