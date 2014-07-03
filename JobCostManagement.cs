@@ -83,6 +83,9 @@ namespace Syscon.JobCostManagementTool
 
             cboCostCode.DisplayMember = "Name";
             cboCostCode.ValueMember = null;
+
+            cboCostCodeForTaxLiablitiy.DisplayMember = "Name";
+            cboCostCodeForTaxLiablitiy.ValueMember = null;
         }
 
         #region Private Methods
@@ -93,11 +96,16 @@ namespace Syscon.JobCostManagementTool
             string phaseNum     = Env.GetConfigVar("PhaseNum", "0", true);
             string costCode     = Env.GetConfigVar("CostCode", "0", true);
             string acctPeriod   = Env.GetConfigVar("AcctPeriod", "1", true);
+            string costCodeTax  = Env.GetConfigVar("CostCodeForTaxLiability", "0", true);
+
             ComboBoxData[] taxPartData = null;
             ComboBoxData[] costCodeData = null;
-            cboTaxPartClass.SelectedIndexChanged    -= cboTaxPartClass_SelectedIndexChanged;
-            cboCostCode.SelectedIndexChanged        -= cboCostCode_SelectedIndexChanged;
-
+            ComboBoxData[] costCodeForTaxData = null;
+            
+            cboTaxPartClass.SelectedIndexChanged            -= cboTaxPartClass_SelectedIndexChanged;
+            cboCostCode.SelectedIndexChanged                -= cboCostCode_SelectedIndexChanged;
+            cboCostCodeForTaxLiablitiy.SelectedIndexChanged -= cboCostCodeForTaxLiablitiy_SelectedIndexChanged;
+ 
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
             {
                 //Get clsnme values from prtcls and fill the part class combo box
@@ -116,13 +124,17 @@ namespace Syscon.JobCostManagementTool
                 costCodeData = costCodeDt.Rows.Select(cc => new ComboBoxData() { Name = (cc[0].ToString().Trim() + "-" + cc[1].ToString().Trim()), Value = cc[0].ToString() }).ToArray();
                 cboCostCode.DataSource = costCodeData;
 
+                costCodeForTaxData = costCodeDt.Rows.Select(cc => new ComboBoxData() { Name = (cc[0].ToString().Trim() + "-" + cc[1].ToString().Trim()), Value = cc[0].ToString() }).ToArray();
+                cboCostCodeForTaxLiablitiy.DataSource = costCodeForTaxData;
             }
             ComboBoxData taxPart = taxPartData.FirstOrDefault(d => d.Value == partClass);
             ComboBoxData selectedCostCode = costCodeData.FirstOrDefault(c => c.Value == costCode);
+            ComboBoxData costCodeTaxLiability = costCodeForTaxData.FirstOrDefault(c => c.Value == costCodeTax);
 
-            cboTaxPartClass.SelectedItem    = (taxPart != null) ? taxPart : taxPartData[0];
-            cboCostCode.SelectedItem        = (selectedCostCode != null) ? selectedCostCode : costCodeData[0];
-            cboAcctPeriod.SelectedItem      = acctPeriod;
+            cboTaxPartClass.SelectedItem            = (taxPart != null) ? taxPart : taxPartData[0];
+            cboCostCode.SelectedItem                = (selectedCostCode != null) ? selectedCostCode : costCodeData[0];
+            cboAcctPeriod.SelectedItem              = acctPeriod;
+            cboCostCodeForTaxLiablitiy.SelectedItem = (selectedCostCode != null) ? costCodeTaxLiability : costCodeForTaxData[0];
 
             radioShowAllJobs.Checked = Env.GetConfigVar("ShowAllJobs", false, false);
             radioShowTMJobs.Checked = Env.GetConfigVar("ShowTnMJobs", false, false);
@@ -138,6 +150,7 @@ namespace Syscon.JobCostManagementTool
 
             cboTaxPartClass.SelectedIndexChanged += cboTaxPartClass_SelectedIndexChanged;
             cboCostCode.SelectedIndexChanged += cboCostCode_SelectedIndexChanged;
+            cboCostCodeForTaxLiablitiy.SelectedIndexChanged += cboCostCodeForTaxLiablitiy_SelectedIndexChanged;
         }
 
         #endregion
@@ -277,8 +290,10 @@ namespace Syscon.JobCostManagementTool
                             if (this.radScanJobForTax.Checked)
                             {
                                 int acctPeriod = Convert.ToInt32(cboAcctPeriod.SelectedItem);
-
+                                int costCodeTax = 0;
+                                FillCostCodeForTaxInfo(out costCodeTax);
                                 FillTaxPartInfo(out taxPartClassId);
+
                                 using (var progress = new ProgressDialog((4 * jobnums.Length) + 2))
                                 {
                                     progress.Tick();
@@ -288,7 +303,7 @@ namespace Syscon.JobCostManagementTool
                                     foreach (long jobNum in jobnums)
                                     {
                                         // This routine scans job costs for tax liabilities
-                                        jobCostDB.ScanForTaxLiability(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, taxPartClassId, acctPeriod, progress);
+                                        jobCostDB.ScanForTaxLiability(dteStartDate.Value, dteEndDate.Value, jobNum, phaseNum, taxPartClassId, acctPeriod, costCodeTax, progress);
                                     }
 
                                     progress.Tick();
@@ -351,6 +366,12 @@ namespace Syscon.JobCostManagementTool
         private void cboAcctPeriod_SelectedIndexChanged(object sender, EventArgs e)
         {
             Env.SetConfigVar("AcctPeriod", cboAcctPeriod.SelectedItem);
+        }
+
+        private void cboCostCodeForTaxLiablitiy_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ComboBoxData data = (ComboBoxData)cboCostCodeForTaxLiablitiy.SelectedValue;
+            Env.SetConfigVar("CostCodeForTaxLiability", (data != null) ? data.Value : "0");
         }
 
         private void btnSMBDir_Click(object sender, EventArgs e)
@@ -437,7 +458,7 @@ namespace Syscon.JobCostManagementTool
         private void activateToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var product_id = Env.GetConfigVar("product_id", 0, false);
-            var product_version = Env.GetConfigVar("product_version", "1.0.0.0", false);
+            var product_version = Env.GetConfigVar("product_version", "1.0.2.0", false);
 
             var frm = new SysconCommon.Protection.ProtectionPlusOnlineActivationForm(product_id, product_version);
             frm.ShowDialog();
@@ -473,7 +494,7 @@ namespace Syscon.JobCostManagementTool
             try
             {
                 ComboBoxData costCodeData = (ComboBoxData)cboCostCode.SelectedItem;
-                costCode = (int)Convert.ToSingle(costCodeData.Value); ;// Convert.ToInt32(cboCostCode.SelectedItem.ToString().Split('-')[0]);
+                costCode = (int)Convert.ToSingle(costCodeData.Value); ;
             }
             catch
             {
@@ -482,10 +503,26 @@ namespace Syscon.JobCostManagementTool
             }
         }
 
-        #endregion      
+        private void FillCostCodeForTaxInfo(out int costCodeTax)
+        {
+            try
+            {
+                ComboBoxData costCodeData = (ComboBoxData)cboCostCodeForTaxLiablitiy.SelectedItem;
+                costCodeTax = (int)Convert.ToSingle(costCodeData.Value);
+            }
+            catch
+            {
+                costCodeTax = 0;
+                Env.Log("Error in parsing cost code from cost code for created tax combo box selected value.");
+            }
+        }
+        #endregion        
 
     }
 
+    /// <summary>
+    /// Class for storing data for Combo box
+    /// </summary>
     public class ComboBoxData
     {
         public ComboBoxData()

@@ -30,7 +30,8 @@ namespace Syscon.JobCostManagementTool
         /// <param name="jobPhase"></param>
         /// <param name="taxPartClassId"></param>
         /// <param name="acctPeriod">Accounting period.</param>
-        public void ScanForTaxLiability(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, int taxPartClassId, int acctPeriod, ProgressDialog progress)
+        public void ScanForTaxLiability(DateTime startDate, DateTime endDate, long jobNumber, 
+            long jobPhase, int taxPartClassId, int acctPeriod, int costCode, ProgressDialog progress)
         {
             //This part classification indicates which parts are considered tax parts
             int taxPartClass = taxPartClassId;
@@ -123,23 +124,14 @@ namespace Syscon.JobCostManagementTool
                             fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE usrnme <> \"TaxAcc\"", 
                                                             ActiveJobCostsTmp, count);
                         }                        
-                    }
-                    //try
-                    //{
-                    //    fldCount = con.ExecuteNonQuery("UPDATE {0} _ActiveJobCosts SET axacccnt = "
-                    //                                    + "(select COUNT(*) from {1} a2 WHERE a2.trnnum == _ActiveJobCosts.taxtrnnum ) "
-                    //                                    + "where usrnme <> \"TaxAcc\"", ActiveJobCostsTmp, ActiveJobCostsTmp);
-                    //}
-                    //catch (Exception ex) { }
-                    
+                    }                  
 
                     //Check to see if each job cost has already had taxes accrued
                     //Create list of job cost records that must be accrued with taxes
                     fldCount = con.ExecuteNonQuery("SELECT	recnum, jobnum, phsnum, trnnum, dscrpt, trndte, {0} as entdte, actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
                                         + "cstcde, csttyp, cstamt as origcstamt, 00000000.00 as cstamt, 00000000.00 as blgamt, 000 as ovrrde, \"TaxAcc\" as usrnme "
                                         + "FROM {1} WHERE taxprtcnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {2}",
-                                        DateTime.Today.ToFoxproDate(), ActiveJobCostsTmp, TaxJobCosts);
-                    
+                                        DateTime.Today.ToFoxproDate(), ActiveJobCostsTmp, TaxJobCosts);                    
 
                     progress.Tick();
                     progress.Text = "Identifying the tax accrual records";
@@ -152,7 +144,7 @@ namespace Syscon.JobCostManagementTool
                         decimal cstType = (decimal)dr["csttyp"];
                         decimal origcStament = (decimal)dr["origcstamt"];
 
-                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\", "
+                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), "
                                                             + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
                                                             + "cstamt = origcstamt * {1}, "
                                                             + "blgamt = origcstamt * {2} WHERE recnum = {3}",
@@ -187,7 +179,7 @@ namespace Syscon.JobCostManagementTool
                                                                        + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
                                                                        + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
                                                                        , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
-                                                                       eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], dr["cstcde"], dr["csttyp"],
+                                                                       eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], costCode, dr["csttyp"],
                                                                        dr["cstamt"], dr["blgamt"], dr["ovrrde"], dr["usrnme"], TaxJobCosts);
                                 fldCount++;
                             }
@@ -280,8 +272,8 @@ namespace Syscon.JobCostManagementTool
 
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Materials\" as dscrpt, {3} as trndte,"
                                                 + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{5} as cstcde, 1 as csttyp, SUM(cstamt) as blgamt, 1 as ovrrde, \"Combine\" as usrnme "
-                                                + "FROM {6} INTO TABLE {7}",
+                                                + "{5} as cstcde, 1 as csttyp, SUM(cstamt) as blgamt, SUM(blgttl) as blgttl, SUM(shwamt) as shwamt, SUM(ovhamt) as ovhamt, "
+                                                + "SUM(pftamt) as pftamt, 1 as ovrrde, \"Combine\" as usrnme FROM {6} INTO TABLE {7}",
                                                 jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, MatCosts, NewMatCosts);
                     }
 
@@ -292,8 +284,8 @@ namespace Syscon.JobCostManagementTool
 
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Subcontract Materials\" as dscrpt, "
                                                     + "{3} as trndte, {4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
-			                                        + "{5} as cstcde, 7 as csttyp, SUM(cstamt) as blgamt, 1 as ovrrde, \"Combine\" as usrnme "
-                                                    + "FROM {6} INTO TABLE {7}",
+                                                    + "{5} as cstcde, 7 as csttyp, SUM(cstamt) as blgamt, SUM(blgttl) as blgttl, SUM(shwamt) as shwamt, SUM(ovhamt) as ovhamt, "
+                                                    + "SUM(pftamt) as pftamt, 1 as ovrrde, \"Combine\" as usrnme FROM {6} INTO TABLE {7}",
                                                     jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, SubMatCosts, NewSubMatCosts);
                     }
 

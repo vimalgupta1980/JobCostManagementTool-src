@@ -58,6 +58,8 @@
             this.lblJobCostMsg = new System.Windows.Forms.Label();
             this.cboAcctPeriod = new SysconCommon.GUI.SearchableComboBox();
             this.label2 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.cboCostCodeForTaxLiablitiy = new SysconCommon.GUI.SearchableComboBox();
             this.menuStrip1.SuspendLayout();
             this.grpBoxSelOptions.SuspendLayout();
             this.SuspendLayout();
@@ -76,7 +78,7 @@
             // btnUpdateJobCost
             // 
             this.btnUpdateJobCost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnUpdateJobCost.Location = new System.Drawing.Point(443, 331);
+            this.btnUpdateJobCost.Location = new System.Drawing.Point(443, 369);
             this.btnUpdateJobCost.Name = "btnUpdateJobCost";
             this.btnUpdateJobCost.Size = new System.Drawing.Size(125, 42);
             this.btnUpdateJobCost.TabIndex = 4;
@@ -242,7 +244,7 @@
             // 
             this.grpBoxSelOptions.Controls.Add(this.radCombineForBilling);
             this.grpBoxSelOptions.Controls.Add(this.radScanJobForTax);
-            this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 311);
+            this.grpBoxSelOptions.Location = new System.Drawing.Point(12, 338);
             this.grpBoxSelOptions.Name = "grpBoxSelOptions";
             this.grpBoxSelOptions.Size = new System.Drawing.Size(421, 75);
             this.grpBoxSelOptions.TabIndex = 27;
@@ -348,11 +350,32 @@
             this.label2.TabIndex = 35;
             this.label2.Text = "Select Posting Period for Tax Liability Records:";
             // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(12, 309);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(212, 13);
+            this.label3.TabIndex = 37;
+            this.label3.Text = "Cost Code for Created Tax Liability Records";
+            // 
+            // cboCostCodeForTaxLiablitiy
+            // 
+            this.cboCostCodeForTaxLiablitiy.ConfigVarName = null;
+            this.cboCostCodeForTaxLiablitiy.FormattingEnabled = true;
+            this.cboCostCodeForTaxLiablitiy.Location = new System.Drawing.Point(245, 307);
+            this.cboCostCodeForTaxLiablitiy.Name = "cboCostCodeForTaxLiablitiy";
+            this.cboCostCodeForTaxLiablitiy.Size = new System.Drawing.Size(202, 21);
+            this.cboCostCodeForTaxLiablitiy.TabIndex = 38;
+            this.cboCostCodeForTaxLiablitiy.SelectedIndexChanged += new System.EventHandler(this.cboCostCodeForTaxLiablitiy_SelectedIndexChanged);
+            // 
             // JobCostManagement
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(585, 400);
+            this.ClientSize = new System.Drawing.Size(585, 422);
+            this.Controls.Add(this.cboCostCodeForTaxLiablitiy);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.cboAcctPeriod);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.lblJobCostMsg);
@@ -375,7 +398,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(601, 438);
+            this.MaximumSize = new System.Drawing.Size(601, 460);
             this.MinimumSize = new System.Drawing.Size(590, 400);
             this.Name = "JobCostManagement";
             this.Text = "Syscon Job Cost Management Tool";
@@ -420,6 +443,8 @@
         private System.Windows.Forms.Label lblJobCostMsg;
         private SysconCommon.GUI.SearchableComboBox cboAcctPeriod;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label3;
+        private SysconCommon.GUI.SearchableComboBox cboCostCodeForTaxLiablitiy;
 
 
     }
