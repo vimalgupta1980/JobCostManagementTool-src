@@ -118,8 +118,6 @@ namespace Syscon.JobCostManagementTool
 
                 //Get cost codes from cstcde
                 DataTable costCodeDt = con.GetDataTable("CostCode", "Select recnum, cdenme from cstcde order by recnum");
-                //cboCostCode.DataSource = (from s in costCodeDt.Rows.ToIEnumerable()
-                //                          select (Convert.ToDecimal(s[0]).ToString().Trim() + "-" + s[1].ToString().Trim())).ToArray();
 
                 costCodeData = costCodeDt.Rows.Select(cc => new ComboBoxData() { Name = (cc[0].ToString().Trim() + "-" + cc[1].ToString().Trim()), Value = cc[0].ToString() }).ToArray();
                 cboCostCode.DataSource = costCodeData;
@@ -458,7 +456,7 @@ namespace Syscon.JobCostManagementTool
         private void activateToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var product_id = Env.GetConfigVar("product_id", 0, false);
-            var product_version = Env.GetConfigVar("product_version", "1.0.2.0", false);
+            var product_version = Env.GetConfigVar("product_version", "1.0.3.0", false);
 
             var frm = new SysconCommon.Protection.ProtectionPlusOnlineActivationForm(product_id, product_version);
             frm.ShowDialog();
@@ -478,7 +476,7 @@ namespace Syscon.JobCostManagementTool
             try
             {
                 ComboBoxData taxPartData = (ComboBoxData)cboTaxPartClass.SelectedItem;
-                taxPartId = Convert.ToInt32(taxPartData.Value);//Convert.ToInt32(cboTaxPartClass.SelectedItem.ToString().Split('-')[0]);
+                taxPartId = Convert.ToInt32(taxPartData.Value);
             }
             catch
             {
