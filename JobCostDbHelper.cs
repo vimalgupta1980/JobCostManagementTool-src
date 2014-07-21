@@ -192,22 +192,22 @@ namespace Syscon.JobCostManagementTool
                                 if (dataSetVersion >= 19.2M)
                                 {
                                     con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                                                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, postyr, usrnme ) "
+                                                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, taxabl, ovrrde, postyr, usrnme ) "
                                                                            + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
                                                                            + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, \"{17}\") "
                                                                            , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
                                                                            eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], costCode, dr["csttyp"],
-                                                                           dr["cstamt"], dr["blgamt"], dr["ovrrde"], curFiscalYear, dr["usrnme"]);
+                                                                           dr["cstamt"], dr["blgamt"], dr["taxabl"], dr["ovrrde"], curFiscalYear, dr["usrnme"]);
                                 }
                                 else
                                 {
                                     con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
-                                                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, ovrrde, usrnme ) "
+                                                                           + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, taxabl, ovrrde, usrnme ) "
                                                                            + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
                                                                            + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
                                                                            , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
                                                                            eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], costCode, dr["csttyp"],
-                                                                           dr["cstamt"], dr["blgamt"], dr["ovrrde"], dr["usrnme"]);
+                                                                           dr["cstamt"], dr["blgamt"], dr["taxabl"], dr["ovrrde"], dr["usrnme"]);
                                 }
                                 fldCount++;
                             }
@@ -344,7 +344,7 @@ namespace Syscon.JobCostManagementTool
                         //Create the first record which will be the non-taxable amount of the combined materials
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Materials\" as dscrpt, {3} as trndte,"
                                                 + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{5} as cstcde, 1 as csttyp, {6} as blgamt, {7} as blgttl, "
+                                                + "{5} as cstcde, 1 as csttyp, {6} as blgamt, {7} as blgttl, 0 as taxabl,"
                                                 + " 1 as ovrrde, {8} as postyr, \"Combine\" as usrnme FROM {9} INTO TABLE {10}",
                                                 jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), 
                                                 costCode, recBillAmout, sumBlgAmt, curFiscalYear, MatCosts, NewMatCosts);
@@ -362,7 +362,7 @@ namespace Syscon.JobCostManagementTool
 
                         modifiedFldCount = con.ExecuteNonQuery("INSERT INTO {0} SELECT {1} as jobnum, {2} as phsnum, {3} as trnnum, \"Materials Service\" as dscrpt, {4} as trndte,"
                                                 + "{5} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{6} as cstcde, 5 as csttyp, {7} as blgamt, {8} as blgttl, "
+                                                + "{6} as cstcde, 5 as csttyp, {7} as blgamt, {8} as blgttl, 1 as taxabl, "
                                                 + " 1 as ovrrde, {9} as postyr, \"Combine\" as usrnme FROM {10}",
                                                 NewMatCosts, jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),
                                                 costCode, recBillAmout, blgTotal, curFiscalYear, MatCosts);
@@ -397,8 +397,8 @@ namespace Syscon.JobCostManagementTool
                         #region "Ver 1.0.3"
                         //Create the first record which will be the non-taxable amount of the combined materials
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Subcontract Materials\" as dscrpt, {3} as trndte,"
-                                                + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{5} as cstcde, 1 as csttyp, {6} as blgamt, {7} as blgttl, "
+                                                + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
+                                                + "{5} as cstcde, 7 as csttyp, {6} as blgamt, {7} as blgttl, 0 as taxabl, "
                                                 + " 1 as ovrrde, {8} as postyr, \"Combine\" as usrnme FROM {9} INTO TABLE {10}",
                                                 jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),
                                                 costCode, recBillAmout, sumBlgAmt, curFiscalYear, SubMatCosts, NewSubMatCosts);
@@ -416,7 +416,7 @@ namespace Syscon.JobCostManagementTool
 
                         modifiedFldCount = con.ExecuteNonQuery("INSERT INTO {0} SELECT {1} as jobnum, {2} as phsnum, {3} as trnnum, \"Subcontract Materials Service\" as dscrpt, {4} as trndte,"
                                                 + "{5} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{6} as cstcde, 5 as csttyp, {7} as blgamt, {8} as blgttl, "
+                                                + "{6} as cstcde, 5 as csttyp, {7} as blgamt, {8} as blgttl, 1 as taxabl, "
                                                 + " 1 as ovrrde, {9} as postyr, \"Combine\" as usrnme FROM {10}",
                                                 NewSubMatCosts, jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),  
                                                 costCode, recBillAmout, blgTotal, curFiscalYear, SubMatCosts);
