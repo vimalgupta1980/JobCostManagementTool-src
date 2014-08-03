@@ -145,7 +145,7 @@ namespace Syscon.JobCostManagementTool
                     //Check to see if each job cost has already had taxes accrued
                     //Create list of job cost records that must be accrued with taxes
                     fldCount = con.ExecuteNonQuery("SELECT	recnum, jobnum, phsnum, trnnum, dscrpt, trndte, {0} as entdte, actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
-                                        + "cstcde, csttyp, cstamt as origcstamt, 00000000.00 as cstamt, 00000000.00 as blgamt, 000 as ovrrde, \"TaxAcc\" as usrnme, "
+                                        + "cstcde, csttyp, cstamt as origcstamt, 00000000.00 as cstamt, 00000000.00 as blgamt, 0 as taxabl, 000 as ovrrde, \"TaxAcc\" as usrnme, "
                                         + "{1} as postyr FROM {2} WHERE taxprtcnt = 0 AND taxacccnt = 0 AND INLIST(srcnum,11) INTO Table {3}",
                                         DateTime.Today.ToFoxproDate(), curFiscalYear, ActiveJobCostsTmp, TaxJobCosts);                    
 
@@ -194,7 +194,7 @@ namespace Syscon.JobCostManagementTool
                                     con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
                                                                            + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, taxabl, ovrrde, postyr, usrnme ) "
                                                                            + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
-                                                                           + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, \"{17}\") "
+                                                                           + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, {17}, \"{18}\") "
                                                                            , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
                                                                            eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], costCode, dr["csttyp"],
                                                                            dr["cstamt"], dr["blgamt"], dr["taxabl"], dr["ovrrde"], curFiscalYear, dr["usrnme"]);
@@ -204,7 +204,7 @@ namespace Syscon.JobCostManagementTool
                                     con.ExecuteNonQuery("INSERT INTO jobcst ( recnum, jobnum, phsnum, trnnum, dscrpt, trndte, entdte, actprd, "
                                                                            + "srcnum, status, bllsts, cstcde, csttyp, cstamt, blgamt, taxabl, ovrrde, usrnme ) "
                                                                            + "VALUES ({0}, {1}, {2}, \"{3}\", \"{4}\", {5}, {6}, "
-                                                                           + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, \"{16}\") "
+                                                                           + "{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, \"{17}\") "
                                                                            , recNum, dr["jobnum"], dr["phsnum"], dr["trnnum"], dr["dscrpt"], trnDate.ToFoxproDate(),
                                                                            eDate.ToFoxproDate(), acctPeriod, dr["srcnum"], dr["status"], dr["bllsts"], costCode, dr["csttyp"],
                                                                            dr["cstamt"], dr["blgamt"], dr["taxabl"], dr["ovrrde"], dr["usrnme"]);

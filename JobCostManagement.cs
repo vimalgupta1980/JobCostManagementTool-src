@@ -456,7 +456,7 @@ namespace Syscon.JobCostManagementTool
         private void activateToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var product_id = Env.GetConfigVar("product_id", 0, false);
-            var product_version = Env.GetConfigVar("product_version", "1.0.3.0", false);
+            var product_version = Env.GetConfigVar("product_version", "1.0.4.0", false);
 
             var frm = new SysconCommon.Protection.ProtectionPlusOnlineActivationForm(product_id, product_version);
             frm.ShowDialog();
