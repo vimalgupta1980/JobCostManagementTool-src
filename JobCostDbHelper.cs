@@ -414,9 +414,14 @@ namespace Syscon.JobCostManagementTool
                             recBillAmout = (sumBlgTotal - sumBlgAmt) / (sumBlgTotal / sumBlgAmt);
                         }
 
-                        modifiedFldCount = con.ExecuteNonQuery("INSERT INTO {0} SELECT {1} as jobnum, {2} as phsnum, {3} as trnnum, \"Subcontract Materials Service\" as dscrpt, {4} as trndte,"
+                        // With version 1.0.5, this second created record, Subcontractor Materials Service, is going 
+                        // to be to cost type 8 to separate
+                        // it from the Materials Service element of the project.   Prior to version 1.0.5, it was going
+                        // going to cost type 5.
+                        modifiedFldCount = con.ExecuteNonQuery("INSERT INTO {0} SELECT {1} as jobnum, {2} as phsnum," 
+                                                + "{3} as trnnum, \"Subcontract Materials Service\" as dscrpt, {4} as trndte,"
                                                 + "{5} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
-                                                + "{6} as cstcde, 5 as csttyp, {7} as blgamt, {8} as blgttl, 1 as taxabl, "
+                                                + "{6} as cstcde, 8 as csttyp, {7} as blgamt, {8} as blgttl, 1 as taxabl, "
                                                 + " 1 as ovrrde, {9} as postyr, \"Combine\" as usrnme FROM {10}",
                                                 NewSubMatCosts, jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),  
                                                 costCode, recBillAmout, blgTotal, curFiscalYear, SubMatCosts);
