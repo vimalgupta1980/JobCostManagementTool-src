@@ -160,7 +160,7 @@ namespace Syscon.JobCostManagementTool
                         decimal cstType = (decimal)dr["csttyp"];
                         decimal origcStament = (decimal)dr["origcstamt"];
 
-                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), "
+                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\", "
                                                             + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
                                                             + "cstamt = origcstamt * {1}, "
                                                             + "blgamt = origcstamt * {2} WHERE recnum = {3}",
@@ -186,6 +186,8 @@ namespace Syscon.JobCostManagementTool
                             DateTime trnDate = (DateTime)dr["trndte"];
                             DateTime eDate = (DateTime)dr["entdte"];
                             decimal cost = (decimal)dr["cstamt"];
+                            string trnNum = (string)dr["trnnum"];
+                            trnNum.Remove(trnNum.IndexOf("-T"), 2);
 
                             if (cost != 0)
                             {
@@ -340,7 +342,7 @@ namespace Syscon.JobCostManagementTool
                         //                        jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, MatCosts, NewMatCosts);
                         #endregion
 
-                        #region "Ver 1.0.3"
+                        #region "Ver 1.0.3 onwards"
                         //Create the first record which will be the non-taxable amount of the combined materials
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Materials\" as dscrpt, {3} as trndte,"
                                                 + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts,"
@@ -394,7 +396,7 @@ namespace Syscon.JobCostManagementTool
                         //                            jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(), costCode, SubMatCosts, NewSubMatCosts);
                         #endregion
 
-                        #region "Ver 1.0.3"
+                        #region "Ver 1.0.3 onwards"
                         //Create the first record which will be the non-taxable amount of the combined materials
                         modifiedFldCount = con.ExecuteNonQuery("SELECT {0} as jobnum, {1} as phsnum, {2} as trnnum, \"Subcontract Materials\" as dscrpt, {3} as trndte,"
                                                 + "{4} as entdte, MAX(actprd) as actprd, 31 as srcnum, 1 as status, 1 as bllsts, "
@@ -537,6 +539,9 @@ namespace Syscon.JobCostManagementTool
                     Env.Log("Updated billing status of {0} records in jobcst table.", modifiedFldCount);
                 }
 
+                //update the job cost tax status 
+                UpdateJobCostTaxStatus(jobNumber, startDate, endDate, con);
+
                 Env.Log("--------------------------------------------------------------------------------\n");
             }
         }
@@ -620,6 +625,66 @@ namespace Syscon.JobCostManagementTool
 
                 //Set default null setting to on again
                 SetNullOn(con);
+            }
+        }
+
+        /// <summary>
+        /// Update the job cost tax status based on the tax district of a job. 
+        /// </summary>
+        /// <param name="jobCode"></param>
+        /// <param name="startDate"></param>
+        /// <param name="endDate"></param>
+        private void UpdateJobCostTaxStatus(long jobCode, DateTime startDate, DateTime endDate, OleDbConnection con)
+        {
+            //using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
+            {
+                // Check the tax status of all unbilled job cost records that are marked to be
+                // manually overridden for the billing total
+
+                //Get the appropriate tax district information
+                string sql = string.Format("SELECT taxdst.* FROM taxdst JOIN actrec ON taxdst.recnum = actrec.slstax "
+                                            + "WHERE actrec.recnum = {0}", jobCode);
+
+                DataTable taxInfoDt = con.GetDataTable("TaxInfo", sql);
+                if (taxInfoDt.Rows.Count != 1)
+                {
+                    //No matching tax district set up in job.
+                    return;
+                }
+
+                int[] taxStatus = new int[9];
+                DataRow dr = taxInfoDt.Rows[0];
+
+                taxStatus[0] = (((string)dr["mattax"]) == "Y") ? 1 : 0;
+                taxStatus[1] = (((string)dr["labtax"]) == "Y") ? 1 : 0;
+                taxStatus[2] = (((string)dr["eqptax"]) == "Y") ? 1 : 0;
+                taxStatus[3] = (((string)dr["subtax"]) == "Y") ? 1 : 0;
+                taxStatus[4] = (((string)dr["othtax"]) == "Y") ? 1 : 0;
+                taxStatus[5] = (((string)dr["usrcs6"]) == "Y") ? 1 : 0;
+                taxStatus[6] = (((string)dr["usrcs7"]) == "Y") ? 1 : 0;
+                taxStatus[7] = (((string)dr["usrcs8"]) == "Y") ? 1 : 0;
+                taxStatus[8] = (((string)dr["usrcs9"]) == "Y") ? 1 : 0;
+
+                //Update the taxable status of unbilled job cost records for this particular job
+                string sql2 = string.Format("SELECT * from jobcst "
+                                                + "WHERE jobcst.jobnum = {0} "
+                                                + "AND jobcst.ovrrde = 1 "
+                                                + "AND jobcst.bllsts = 1 "
+                                                + "AND BETWEEN(jobcst.trndte, {1},{2})", jobCode,
+                                                startDate.ToFoxproDate(), endDate.ToFoxproDate());
+
+                DataTable dt = con.GetDataTable("Jobcst", sql2);
+                foreach (DataRow row in dt.Rows)
+                {
+                    int cstTyp = (int)((decimal)row["csttyp"]);
+                    decimal recNum = (decimal)row["recnum"];
+
+                    string updateSql = string.Format("UPDATE jobcst SET taxabl = {0} "
+                                                    + "WHERE jobcst.recnum = {1} ", taxStatus[cstTyp - 1], recNum);
+
+                    con.ExecuteNonQuery(updateSql);
+                }
+
             }
         }
 
