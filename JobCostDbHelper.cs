@@ -316,18 +316,17 @@ namespace Syscon.JobCostManagementTool
                     //t&m records, the billing total will be correct.
                     //LOCAL ARRAY tvalue(1,1)
 
-
                     //Combine the material costs into a single record for appending to the actual job costs
                     int matCostCount = con.GetScalar<int>("select count(*) from {0}", MatCosts);
                     if (matCostCount > 0)
                     {
-                        double sumBlgAmt = 0.0;
-                        double sumBlgTotal = 0.0;
-                        double recBillAmout = 0.0;
-                        sumBlgAmt = con.GetScalar<double>("SELECT SUM(blgamt) FROM {0}", MatCosts);
-                        sumBlgTotal = con.GetScalar<double>("SELECT SUM(blgttl) FROM {0}", MatCosts);
+                        decimal sumBlgAmt = 0.0m;
+                        decimal sumBlgTotal = 0.0m;
+                        decimal recBillAmout = 0.0m;
+                        sumBlgAmt = con.GetScalar<decimal>("SELECT SUM(blgamt) FROM {0}", MatCosts);
+                        sumBlgTotal = con.GetScalar<decimal>("SELECT SUM(blgttl) FROM {0}", MatCosts);
 
-                        if (sumBlgTotal != 0.0)
+                        if (sumBlgTotal != 0.0m)
                         {
                             recBillAmout = (sumBlgAmt * sumBlgAmt) / sumBlgTotal;
                         }
@@ -353,11 +352,11 @@ namespace Syscon.JobCostManagementTool
 
                         //Create the second record which will be the taxable amount of the combined materials.
                         //NOTE: THE COST TYPE IS GOING TO BE 5 FOR THIS RECORD, NOT 1 LIKE THE ABOVE RECORD.                        
-                        recBillAmout = 0.0;
+                        recBillAmout = 0.0m;
                         formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "MSrv");
-                        double blgTotal = sumBlgTotal - sumBlgAmt;
+                        decimal blgTotal = sumBlgTotal - sumBlgAmt;
 
-                        if ((sumBlgTotal != 0.0) && (sumBlgAmt != 0.0))
+                        if ((sumBlgTotal != 0.0m) && (sumBlgAmt != 0.0m))
                         {
                             recBillAmout = (sumBlgTotal - sumBlgAmt) / (sumBlgTotal / sumBlgAmt);
                         }
@@ -369,19 +368,18 @@ namespace Syscon.JobCostManagementTool
                                                 NewMatCosts, jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),
                                                 costCode, recBillAmout, blgTotal, curFiscalYear, MatCosts);
                         #endregion
-
                     }
 
                     int subMatCostCount = con.GetScalar<int>("select count(*) from {0}", SubMatCosts);
                     if (subMatCostCount > 0)
                     {
-                        double sumBlgAmt = 0.0;
-                        double sumBlgTotal = 0.0;
-                        double recBillAmout = 0.0;
-                        sumBlgAmt = con.GetScalar<double>("SELECT SUM(blgamt) FROM {0}", SubMatCosts);
-                        sumBlgTotal = con.GetScalar<double>("SELECT SUM(blgttl) FROM {0}", SubMatCosts);
+                        decimal sumBlgAmt = 0.0m;
+                        decimal sumBlgTotal = 0.0m;
+                        decimal recBillAmout = 0.0m;
+                        sumBlgAmt = con.GetScalar<decimal>("SELECT SUM(blgamt) FROM {0}", SubMatCosts);
+                        sumBlgTotal = con.GetScalar<decimal>("SELECT SUM(blgttl) FROM {0}", SubMatCosts);
 
-                        if (sumBlgTotal != 0.0)
+                        if (sumBlgTotal != 0.0m)
                         {
                             recBillAmout = (sumBlgAmt * sumBlgAmt) / sumBlgTotal;
                         }
@@ -407,11 +405,11 @@ namespace Syscon.JobCostManagementTool
 
                         //Create the second record which will be the taxable amount of the combined materials.
                         //NOTE: THE COST TYPE IS GOING TO BE 5 FOR THIS RECORD, NOT 1 LIKE THE ABOVE RECORD.                        
-                        recBillAmout = 0.0;
+                        recBillAmout = 0.0m;
                         formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "SubMSrv");
-                        double blgTotal = sumBlgTotal - sumBlgAmt;
+                        decimal blgTotal = sumBlgTotal - sumBlgAmt;
 
-                        if ((sumBlgTotal != 0.0) && (sumBlgAmt != 0.0))
+                        if ((sumBlgTotal != 0.0m) && (sumBlgAmt != 0.0m))
                         {
                             recBillAmout = (sumBlgTotal - sumBlgAmt) / (sumBlgTotal / sumBlgAmt);
                         }
@@ -428,13 +426,12 @@ namespace Syscon.JobCostManagementTool
                                                 NewSubMatCosts, jobNumber, jobPhase, formattedED, endDate.ToFoxproDate(), DateTime.Today.ToFoxproDate(),  
                                                 costCode, recBillAmout, blgTotal, curFiscalYear, SubMatCosts);
                         #endregion
-
                     }
 
                     SetNullOff(con);
 
                     progress.Tick();
-                    progress.Text = string.Format("Inserting material cost records into jobcst table");                    
+                    progress.Text = string.Format("Inserting material cost records into jobcst table");
 
                     if (System.IO.File.Exists(NewMatCosts.filename))
                     {
@@ -442,7 +439,7 @@ namespace Syscon.JobCostManagementTool
                         if (matCostDetails != null && matCostDetails.Rows.Count > 0)
                         {
                             //Add the recnum and ntetxt column
-                            matCostDetails.Columns.Add("recnum",typeof(decimal));
+                            matCostDetails.Columns.Add("recnum", typeof(decimal));
                             matCostDetails.Columns.Add("ntetxt");
 
                             if (dataSetVersion < 19.0M)
@@ -480,16 +477,16 @@ namespace Syscon.JobCostManagementTool
                                 //con.ExecuteNonQuery(sql);
 
                                 // insert the record
-                                dr["recnum"] = recNum;                              
+                                dr["recnum"] = recNum;
                                 dr["ntetxt"] = MatCostDetail;
-                                
+
                                 var sql = dr.FoxproInsertString("jobcst");
                                 con.ExecuteNonQuery(sql);
 
                                 modifiedFldCount++;
                             }
                         }
-                    }
+                    }                  
 
                     progress.Tick();
                     progress.Text = string.Format("Inserting sub material cost records into jobcst table");
