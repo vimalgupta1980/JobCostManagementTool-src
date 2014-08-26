@@ -329,6 +329,7 @@ namespace Syscon.JobCostManagementTool
                         if (sumBlgTotal != 0.0m)
                         {
                             recBillAmout = (sumBlgAmt * sumBlgAmt) / sumBlgTotal;
+                            recBillAmout = Math.Round(recBillAmout, 2);
                         }
 
                         string formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "Mat");
@@ -359,6 +360,7 @@ namespace Syscon.JobCostManagementTool
                         if ((sumBlgTotal != 0.0m) && (sumBlgAmt != 0.0m))
                         {
                             recBillAmout = (sumBlgTotal - sumBlgAmt) / (sumBlgTotal / sumBlgAmt);
+                            recBillAmout = Math.Round(recBillAmout, 2);
                         }
 
                         modifiedFldCount = con.ExecuteNonQuery("INSERT INTO {0} SELECT {1} as jobnum, {2} as phsnum, {3} as trnnum, \"Materials Service\" as dscrpt, {4} as trndte,"
@@ -382,6 +384,7 @@ namespace Syscon.JobCostManagementTool
                         if (sumBlgTotal != 0.0m)
                         {
                             recBillAmout = (sumBlgAmt * sumBlgAmt) / sumBlgTotal;
+                            recBillAmout = Math.Round(recBillAmout, 2);
                         }
 
                         string formattedED = string.Format("'{0} {1}'", endDate.ToString("MM/dd/yy"), "SubMat");
@@ -412,6 +415,7 @@ namespace Syscon.JobCostManagementTool
                         if ((sumBlgTotal != 0.0m) && (sumBlgAmt != 0.0m))
                         {
                             recBillAmout = (sumBlgTotal - sumBlgAmt) / (sumBlgTotal / sumBlgAmt);
+                            recBillAmout = Math.Round(recBillAmout, 2);
                         }
 
                         // With version 1.0.5, this second created record, Subcontractor Materials Service, is going 
