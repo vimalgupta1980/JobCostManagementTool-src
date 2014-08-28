@@ -97,7 +97,7 @@ namespace Syscon.JobCostManagementTool
                     //entry of the originating transactions.   For now, that is only AP entries
                     //Get the list of AP invoices associated with the job costs
                     fldCount = con.ExecuteNonQuery("SELECT ajc.*, NVL(a.recnum, 00000000) as aprecnum, NVL(a.invnum, SPACE(15)) as apinvnum, 000 as taxprtcnt, "
-                                                    + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\",LEN(trnnum)) as TaxTrnNum, 000 as taxAccCnt "
+                                                    + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), LEN(trnnum)) as TaxTrnNum, 000 as taxAccCnt "
                                                     + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec WHERE a.status <> 2 "
                                                     + "INTO Table {1}", ActiveJobCosts, ActiveJobCostsTmp);
 
@@ -123,7 +123,7 @@ namespace Syscon.JobCostManagementTool
                         //If count is 0 then there is no point in updating the value as it is already set to 0 by default.
                         if (count > 0)
                         {
-                            con.ExecuteNonQuery("UPDATE {0} SET taxprtcnt = {1} WHERE aprecnum = {2}", ActiveJobCostsTmp, count, aprecNum);
+                            fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxprtcnt = {1} WHERE aprecnum = {2}", ActiveJobCostsTmp, count, aprecNum);
                         }
                     }
 
@@ -134,13 +134,14 @@ namespace Syscon.JobCostManagementTool
                     {
                         string taxTrnNum = (string)dr["taxtrnnum"];
 
-                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\"", ActiveJobCostsTmp, taxTrnNum);
+                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\" AND usrnme = \"TaxAcc\"", ActiveJobCostsTmp, taxTrnNum);
                         if (count > 0)
                         {
                             fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE usrnme <> \"TaxAcc\"", 
                                                             ActiveJobCostsTmp, count);
                         }                        
-                    }                  
+                    }
+
 
                     //Check to see if each job cost has already had taxes accrued
                     //Create list of job cost records that must be accrued with taxes
@@ -160,7 +161,7 @@ namespace Syscon.JobCostManagementTool
                         decimal cstType = (decimal)dr["csttyp"];
                         decimal origcStament = (decimal)dr["origcstamt"];
 
-                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)) + \"-T\", "
+                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), "
                                                             + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
                                                             + "cstamt = origcstamt * {1}, "
                                                             + "blgamt = origcstamt * {2} WHERE recnum = {3}",
@@ -185,9 +186,7 @@ namespace Syscon.JobCostManagementTool
                             int recNum = con.GetScalar<int>("SELECT MAX(recnum) from jobcst") + 1;
                             DateTime trnDate = (DateTime)dr["trndte"];
                             DateTime eDate = (DateTime)dr["entdte"];
-                            decimal cost = (decimal)dr["cstamt"];
-                            string trnNum = (string)dr["trnnum"];
-                            trnNum.Remove(trnNum.IndexOf("-T"), 2);
+                            decimal cost = (decimal)dr["cstamt"];                        
 
                             if (cost != 0)
                             {
