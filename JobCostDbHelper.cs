@@ -137,8 +137,8 @@ namespace Syscon.JobCostManagementTool
                         int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\" AND usrnme = \"TaxAcc\"", ActiveJobCostsTmp, taxTrnNum);
                         if (count > 0)
                         {
-                            fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE usrnme <> \"TaxAcc\"", 
-                                                            ActiveJobCostsTmp, count);
+                            fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE trnnum = \"{2}\" ",
+                                                            ActiveJobCostsTmp, count, taxTrnNum);
                         }                        
                     }
 
