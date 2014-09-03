@@ -96,8 +96,9 @@ namespace Syscon.JobCostManagementTool
                     //Identify for each active job cost record if a tax burden has been applied in the
                     //entry of the originating transactions.   For now, that is only AP entries
                     //Get the list of AP invoices associated with the job costs
+                    //1.0.8 - TaxTrnNum should not be truncated at this point.
                     fldCount = con.ExecuteNonQuery("SELECT ajc.*, NVL(a.recnum, 00000000) as aprecnum, NVL(a.invnum, SPACE(15)) as apinvnum, 000 as taxprtcnt, "
-                                                    + "PADR(ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), LEN(trnnum)) as TaxTrnNum, 000 as taxAccCnt "
+                                                    + "trnnum as TaxTrnNum, 000 as taxAccCnt "
                                                     + "FROM {0} ajc LEFT JOIN acpinv a ON ajc.lgrrec = a.lgrrec WHERE a.status <> 2 "
                                                     + "INTO Table {1}", ActiveJobCosts, ActiveJobCostsTmp);
 
@@ -134,7 +135,8 @@ namespace Syscon.JobCostManagementTool
                     {
                         string taxTrnNum = (string)dr["taxtrnnum"];
 
-                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\" AND usrnme = \"TaxAcc\"", ActiveJobCostsTmp, taxTrnNum);
+                        //Version 1.0.8 - Should be scanning all job costs, not job costs temp for this part of the test
+                        int count = con.GetScalar<int>("SELECT COUNT(*) FROM {0} WHERE trnnum = \"{1}\" AND usrnme = \"TaxAcc\"", ActiveJobCosts, taxTrnNum);
                         if (count > 0)
                         {
                             fldCount = con.ExecuteNonQuery("UPDATE {0} SET taxacccnt = {1} WHERE trnnum = \"{2}\" ",
@@ -161,7 +163,8 @@ namespace Syscon.JobCostManagementTool
                         decimal cstType = (decimal)dr["csttyp"];
                         decimal origcStament = (decimal)dr["origcstamt"];
 
-                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET trnnum = ALLTRIM(SUBSTR(trnnum,1,LEN(trnnum)-2)), "
+                        //1.0.8 - Don't truncate the transaction number, it does not need to be modified as it was originally
+                        fldCount = con.ExecuteNonQuery("UPDATE {0} SET  "
                                                             + "dscrpt = ALLTRIM(SUBSTR(dscrpt,1,LEN(dscrpt)-4)) + \" Tax\", "
                                                             + "cstamt = origcstamt * {1}, "
                                                             + "blgamt = origcstamt * {2} WHERE recnum = {3}",
