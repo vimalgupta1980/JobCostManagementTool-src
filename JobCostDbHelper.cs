@@ -551,12 +551,15 @@ namespace Syscon.JobCostManagementTool
         }
 
         /// <summary>
-        /// This method consolidates all job cost records that have been invoiced through T&M.
+        /// This method updates a field "pieces" in the job cost record so we can identify which
+        /// records should be included in a supplemental detail report.
         /// </summary>
         /// <param name="startDate"></param>
         /// <param name="endDate"></param>
         /// <param name="jobNumber"></param>
         /// <param name="jobPhase"></param>
+        // 1.0.10 - Added logic to include all billed records, not just those that have had a combined
+        // cost included in the invoice (law)
         public void UpdateTMTJobCost(DateTime startDate, DateTime endDate, long jobNumber, long jobPhase, ProgressDialog progress)
         {
             using (var con = SysconCommon.Common.Environment.Connections.GetOLEDBConnection())
@@ -565,6 +568,7 @@ namespace Syscon.JobCostManagementTool
                     (
                         Env.TempDBFPointer
                         CombinedCosts = con.GetTempDBF(),
+                        AllCosts = con.GetTempDBF(), 
                         RecordList = con.GetTempDBF(),
                         ACRInvList = con.GetTempDBF()
                     )
@@ -572,9 +576,14 @@ namespace Syscon.JobCostManagementTool
                     progress.Tick();
                     progress.Text = string.Format("Start updating the TMT job costs");
 
+
+                    //1.0.10 All job costs that have been billed during the selected time period by the user (law)
+                    int modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE status = 1 AND acrinv > 0 AND BETWEEN(trndte,{0},{1}) "
+                                + "AND usrnme <> \"Combine\" into table {2}", startDate.ToFoxproDate(), endDate.ToFoxproDate(), AllCosts);
+
                     //Find all the consolidated job costs in the selected time period
                     //That have been invoiced through T&M
-                    int modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE status = 1 AND acrinv > 0 AND BETWEEN(trndte,{0},{1}) "
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT * FROM jobcst WHERE status = 1 AND acrinv > 0 AND BETWEEN(trndte,{0},{1}) "
                                                     + "AND usrnme == \"Combine\" into table {2}", startDate.ToFoxproDate(), endDate.ToFoxproDate(), CombinedCosts);
                     
                     Env.Log("{0} T&M records found in jobcst table for updation.", modifiedFldCount);
@@ -606,13 +615,18 @@ namespace Syscon.JobCostManagementTool
                         }
                     }
 
-                    modifiedFldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", CombinedCosts, ACRInvList);
+                    // modifiedFldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", CombinedCosts, ACRInvList);
+                    // 1.0.10 (law) the ACRInvList has to include all invoices - even if there were no combined records in those invoices
+                    modifiedFldCount = con.ExecuteNonQuery("SELECT distinct acrinv FROM {0} INTO table {1}", AllCosts, ACRInvList);
 
                     progress.Tick();
                     progress.Text = string.Format("Updating TMT job cost records");
 
-                    //Reset all the records to blank 
+                    //Reset all the records to blank - this is specific to the list of invoices we are updating
                     modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = 0 from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv", ACRInvList);
+                    //1.0.10 Reset all the combined records to blank - again, this must be specific to the list of invoices we are updating
+                    modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = 0 from {0} _RecordList WHERE _RecordList.recnum = jobcst.recnum", RecordList);
+
 
                     //Now update the job cost records from the standardn, non-Combined records - excluding combined records
                     modifiedFldCount = con.ExecuteNonQuery("UPDATE jobcst SET pieces = _ACRInvList.acrinv from {0} _ACRInvList WHERE jobcst.acrinv = _ACRInvList.acrinv "
